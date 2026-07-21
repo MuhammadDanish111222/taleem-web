@@ -21,3 +21,11 @@ This document serves as a persistent record of the progress made across differen
   - Created robust, idempotent database seeding script (`scripts/seed-catalogue.ts`) to populate Punjab and Federal board hierarchies using stable slugs.
   - Authored and deployed Firestore Security Rules (`firestore.rules`) to securely expose public data and restrict unauthorized writes.
   - Authored and deployed Firestore Composite Indexes (`firestore.indexes.json`) to allow sorted queries by `display_order`.
+
+## Phase 1C: Dynamic Board / Class / Subject / Chapter Selectors
+- **Status:** Completed
+- **Details:** 
+  - Implemented reusable `useCatalogueSelection` Zustand store to manage the hierarchical state (board -> class -> subject -> chapter).
+  - Ensured cascading resets: changing a parent automatically clears all dependent children selections.
+  - Implemented `useCatalogueOptions` hook to deduplicate simultaneous requests, prevent stale-response race conditions, cache briefly, and support retry logic.
+  - Built accessible native select components (`BoardSelector`, `ClassSelector`, `SubjectSelector`, `ChapterSelector`) that map 'All Chapters' to `null` properly and expose distinct loading, empty, and error states.
