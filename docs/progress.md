@@ -38,3 +38,15 @@ This document serves as a persistent record of the progress made across differen
   - Developed a dynamic `/[boardId]/[classId]/[subjectId]` route that validates exact Firestore hierarchy and throws a 404 for invalid/inactive combinations.
   - Implemented client-side `CatalogueHero` utilizing existing Phase 1C Zustand selectors for exact route navigation.
   - Created a skeleton `loading.tsx` to ensure smooth UX during route navigation without performing client data fetches.
+
+## Phase 1E: Admin Panel Shell & Admin Authorization
+- **Status:** Completed
+- **Details:** 
+  - Established secure Firebase admin session flow incorporating double-submit CSRF protection (`__csrf`).
+  - Built `/api/auth/session` endpoint to exchange ID tokens for `__session` cookies strictly for users with `admin: true` claims.
+  - Built `/api/auth/logout` endpoint that revokes all refresh tokens on the Firebase server for deep security.
+  - Developed server-side session utilities (`lib/auth/session.ts`) to extract and verify cookies using the Firebase Admin SDK.
+  - Implemented Next.js 16 `proxy.ts` for an optimistic cookie presence check without Firebase Admin instantiation on edge/proxy.
+  - Refactored `app/admin/(protected)/layout.tsx` to wrap `requireAdminSession` in a `<Suspense>` boundary to correctly handle Next.js 16 `cacheComponents` (PPR) dynamic requirements.
+  - Configured `tsconfig.json` to properly resolve `@/*` path aliases.
+  - Created standalone operator CLI script (`scripts/grant-admin.ts`) using Node 20 `--env-file` to safely append `admin: true` claims to user accounts.
