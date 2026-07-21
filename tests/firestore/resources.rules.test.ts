@@ -116,8 +116,29 @@ describe('Firestore Security Rules - Resources', () => {
   });
 
   it('allows published query and denies unconstrained query', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      await setDoc(doc(db, 'boards/b1'), { active: true });
+      await setDoc(doc(db, 'boards/b1/classes/c1'), { active: true });
+      await setDoc(doc(db, 'boards/b1/classes/c1/subjects/s1'), { active: true });
+      await setDoc(doc(db, 'resources/res1_pub'), {
+        status: 'published',
+        boardId: 'b1',
+        classId: 'c1',
+        subjectId: 's1',
+        chapterId: null,
+      });
+    });
+
     const db = getUnauthedDb();
-    const q1 = query(collection(db, 'resources'), where('status', '==', 'published'));
+    const q1 = query(
+      collection(db, 'resources'), 
+      where('status', '==', 'published'),
+      where('boardId', '==', 'b1'),
+      where('classId', '==', 'c1'),
+      where('subjectId', '==', 's1'),
+      where('chapterId', '==', null)
+    );
     await assertSucceeds(getDocs(q1));
 
     const q2 = query(collection(db, 'resources'));
@@ -159,5 +180,80 @@ describe('Firestore Security Rules - Resources', () => {
 
     // Verify it's no longer readable
     await assertFails(getDoc(doc(db, 'resources/res_parent_disabled')));
+  });
+  it('denies reading a published resource with mismatched hierarchy', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      await setDoc(doc(db, 'boards/b1'), { active: true });
+      await setDoc(doc(db, 'boards/b1/classes/c1'), { active: true });
+      await setDoc(doc(db, 'boards/b1/classes/c1/subjects/s1'), { active: true });
+      // Here, resource has c2 instead of c1, so boards/b1/classes/c2 will not exist
+      await setDoc(doc(db, 'resources/res_mismatch'), {
+        status: 'published',
+        boardId: 'b1',
+        classId: 'c2',
+        subjectId: 's1',
+        chapterId: null,
+      });
+    });
+
+    const db = getUnauthedDb();
+    await assertFails(getDoc(doc(db, 'resources/res_mismatch')));
+  });
+
+  it('denies reading hidden resource', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      await setDoc(doc(db, 'boards/b1'), { active: true });
+      await setDoc(doc(db, 'boards/b1/classes/c1'), { active: true });
+      await setDoc(doc(db, 'boards/b1/classes/c1/subjects/s1'), { active: true });
+      await setDoc(doc(db, 'resources/res_hidden'), {
+        status: 'hidden',
+        boardId: 'b1',
+        classId: 'c1',
+        subjectId: 's1',
+      });
+    });
+
+    const db = getUnauthedDb();
+    await assertFails(getDoc(doc(db, 'resources/res_hidden')));
+  });
+
+  it('denies reading archived resource', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      await setDoc(doc(db, 'boards/b1'), { active: true });
+      await setDoc(doc(db, 'boards/b1/classes/c1'), { active: true });
+      await setDoc(doc(db, 'boards/b1/classes/c1/subjects/s1'), { active: true });
+      await setDoc(doc(db, 'resources/res_archived'), {
+        status: 'archived',
+        boardId: 'b1',
+        classId: 'c1',
+        subjectId: 's1',
+      });
+    });
+
+    const db = getUnauthedDb();
+    await assertFails(getDoc(doc(db, 'resources/res_archived')));
+  });
+
+  it('denies writes by authenticated student client', async () => {
+    const db = testEnv.authenticatedContext('student1', { role: 'student' }).firestore();
+    await assertFails(setDoc(doc(db, 'resources/res1'), { status: 'draft' }));
+  });
+
+  it('denies writes by authenticated admin client', async () => {
+    const db = testEnv.authenticatedContext('admin1', { role: 'admin' }).firestore();
+    await assertFails(setDoc(doc(db, 'resources/res1'), { status: 'draft' }));
+  });
+
+  it('denies writing to admin_audit_logs', async () => {
+    const db = getUnauthedDb();
+    await assertFails(setDoc(doc(db, 'admin_audit_logs/log1'), { action: 'test' }));
+  });
+
+  it('denies version document write', async () => {
+    const db = getUnauthedDb();
+    await assertFails(setDoc(doc(db, 'resources/res1/versions/v1'), { storageKey: 'test' }));
   });
 });

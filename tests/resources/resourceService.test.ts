@@ -1,13 +1,6 @@
-import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('server-only', () => ({}));
-import { getApps, initializeApp } from 'firebase-admin/app';
 
-beforeAll(() => {
-  process.env.FIRESTORE_EMULATOR_HOST = '127.0.0.1:8080';
-  if (!getApps().length) {
-    initializeApp({ projectId: 'demo-taleem-test' });
-  }
-});
 import {
   createDraftResourceWithInitialVersion,
   publishResource,
@@ -246,4 +239,44 @@ describe('Resource Service (Integration/Unit)', () => {
       expect((dto as any)[key]).toBeUndefined();
     }
   });
+
+  it('rejects invalid status transitions and same-state transitions', async () => {
+    const draftResource = await createDraftResourceWithInitialVersion(actor, baseInput, baseVersionInput);
+    
+    // draft -> hidden (rejected)
+    await expect(hideResource(actor, draftResource.id)).rejects.toThrow(ResourceError);
+    // restore draft (rejected, only archived can be restored)
+    await expect(restoreArchivedResource(actor, draftResource.id)).rejects.toThrow(ResourceError);
+    // same state draft -> archive is ok, but let's test draft -> publish
+    const pubResource = await publishResource(actor, draftResource.id);
+    
+    // same state published -> published
+    await expect(publishResource(actor, pubResource.id)).rejects.toThrow(ResourceError);
+    // restore published (rejected)
+    await expect(restoreArchivedResource(actor, pubResource.id)).rejects.toThrow(ResourceError);
+
+    // published -> hidden (allowed)
+    const hidResource = await hideResource(actor, pubResource.id);
+    // same state hidden -> hidden
+    await expect(hideResource(actor, hidResource.id)).rejects.toThrow(ResourceError);
+    
+    // hidden -> publish (allowed)
+    const pubResource2 = await publishResource(actor, hidResource.id);
+    
+    // published -> archived (allowed)
+    const archResource = await archiveResource(actor, pubResource2.id);
+    // same state archived -> archived
+    await expect(archiveResource(actor, archResource.id)).rejects.toThrow(ResourceError);
+    // archived -> published (rejected)
+    await expect(publishResource(actor, archResource.id)).rejects.toThrow(ResourceError);
+    // archived -> hidden (rejected)
+    await expect(hideResource(actor, archResource.id)).rejects.toThrow(ResourceError);
+  });
+
+  it('rejects replacing version for archived resource', async () => {
+    const resource = await createDraftResourceWithInitialVersion(actor, baseInput, baseVersionInput);
+    await archiveResource(actor, resource.id);
+    await expect(addResourceVersion(actor, resource.id, baseVersionInput)).rejects.toThrow(ResourceError);
+  });
 });
+
