@@ -29,3 +29,12 @@ This document serves as a persistent record of the progress made across differen
   - Ensured cascading resets: changing a parent automatically clears all dependent children selections.
   - Implemented `useCatalogueOptions` hook to deduplicate simultaneous requests, prevent stale-response race conditions, cache briefly, and support retry logic.
   - Built accessible native select components (`BoardSelector`, `ClassSelector`, `SubjectSelector`, `ChapterSelector`) that map 'All Chapters' to `null` properly and expose distinct loading, empty, and error states.
+
+## Phase 1D: Public Catalogue Pages & Dynamic Routing
+- **Status:** Completed
+- **Details:** 
+  - Upgraded Next.js to 16.x stable release and enabled `cacheComponents: true` in `next.config.ts`.
+  - Built typed server-side catalogue functions (`lib/firestore/catalogue.server.ts`) using Firebase Admin SDK and native Next.js 16 caching (`use cache`, `cacheLife`, `cacheTag`).
+  - Developed a dynamic `/[boardId]/[classId]/[subjectId]` route that validates exact Firestore hierarchy and throws a 404 for invalid/inactive combinations.
+  - Implemented client-side `CatalogueHero` utilizing existing Phase 1C Zustand selectors for exact route navigation.
+  - Created a skeleton `loading.tsx` to ensure smooth UX during route navigation without performing client data fetches.

@@ -20,3 +20,11 @@ This document logs significant architectural decisions and changes made througho
 - **Change Details:** 
   - Zustand was chosen to maintain the hierarchical selection state (`boardId`, `classId`, etc.) and automatically reset dependent children when a parent changes, ensuring a single global source of truth.
   - A custom `useCatalogueOptions` hook was built (instead of adding heavy libraries like SWR/React Query) to handle in-flight request deduplication, short-lived caching, and offline fallbacks (with an 8-second timeout to prevent infinite Firebase SDK hangs).
+
+## Phase 1D: Server Caching & Data Fetching
+- **Decision:** Use stable Next.js 16 Cache Components for Public Catalogue routes.
+- **Change Details:**
+  - Standardized on `cacheComponents: true` in `next.config.ts`.
+  - Migrated away from unstable cache functions, using standard Next.js 16 native caching functions (`"use cache"`, `cacheLife`, `cacheTag`).
+  - Required upgrading to Node.js 20.9+ and TypeScript 5.1+ to satisfy Next.js 16.
+  - Required explicitly separating Firebase Admin logic into `lib/firestore/catalogue.server.ts` to ensure it only runs server-side and integrates perfectly with `use cache`.
