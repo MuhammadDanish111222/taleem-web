@@ -43,3 +43,8 @@ Strict separation of secrets is enforced:
 - `DATABASE_URL`
 - `DEEPSEEK_API_KEY` & `OCR_KEYS`
 - `INTERNAL_JWT_PUBLIC_KEYS_JSON`
+ 
+ ## Storage & Resources
+- **Storage Provider:** Google Workspace Shared Drive (used for PDF storage).
+- **Resource Versioning:** Immutable version control via Firestore.
+- **Trust Boundary:** Browser never directly accesses Google Drive URLs. It goes through Next.js proxy routes using authorized streams.

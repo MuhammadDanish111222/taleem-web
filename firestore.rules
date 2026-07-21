@@ -35,6 +35,22 @@ service cloud.firestore {
         }
       }
     }
+    // Resources: Public if published and hierarchy is active
+    match /resources/{resourceId} {
+      allow read: if resource.data.status == "published"
+                  && get(/databases/$(database)/documents/boards/$(resource.data.boardId)).data.active == true
+                  && get(/databases/$(database)/documents/boards/$(resource.data.boardId)/classes/$(resource.data.classId)).data.active == true
+                  && get(/databases/$(database)/documents/boards/$(resource.data.boardId)/classes/$(resource.data.classId)/subjects/$(resource.data.subjectId)).data.active == true
+                  && (resource.data.chapterId == null || get(/databases/$(database)/documents/boards/$(resource.data.boardId)/classes/$(resource.data.classId)/subjects/$(resource.data.subjectId)/chapters/$(resource.data.chapterId)).data.active == true);
+      
+      match /versions/{versionId} {
+        allow read, write: if false;
+      }
+    }
+
+    match /admin_audit_logs/{logId} {
+      allow read, write: if false;
+    }
     
     // Default deny all client writes (Admin SDK bypasses this)
     // Default deny any reads not explicitly allowed above
