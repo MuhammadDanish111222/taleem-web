@@ -1,0 +1,45 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Site settings: universally public
+    match /site_settings/default {
+      allow read: if true;
+    }
+    
+    // Academy settings: public only if visible is true
+    match /academy_settings/default {
+      allow read: if resource.data.visible == true;
+    }
+    
+    // Public Catalogue
+    match /boards/{boardId} {
+      allow read: if resource.data.active == true;
+      
+      match /classes/{classId} {
+        allow read: if resource.data.active == true
+                    && get(/databases/$(database)/documents/boards/$(boardId)).data.active == true;
+                    
+        match /subjects/{subjectId} {
+          allow read: if resource.data.active == true
+                      && get(/databases/$(database)/documents/boards/$(boardId)/classes/$(classId)).data.active == true
+                      && get(/databases/$(database)/documents/boards/$(boardId)).data.active == true;
+                      
+          match /chapters/{chapterId} {
+            allow read: if resource.data.active == true
+                        && get(/databases/$(database)/documents/boards/$(boardId)/classes/$(classId)/subjects/$(subjectId)).data.active == true
+                        && get(/databases/$(database)/documents/boards/$(boardId)/classes/$(classId)).data.active == true
+                        && get(/databases/$(database)/documents/boards/$(boardId)).data.active == true;
+          }
+        }
+      }
+    }
+    
+    // Default deny all client writes (Admin SDK bypasses this)
+    // Default deny any reads not explicitly allowed above
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

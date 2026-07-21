@@ -3,6 +3,7 @@
 - [x] Phase 0: Initial Repository Setup
 - [ ] Phase 1: Authentication & User Management
   - [x] Phase 1A: Firebase Project, Authentication & Admin SDK Wiring
+  - [x] Phase 1B: Firestore Catalogue Schema & Seed Script
 - [ ] Phase 2: Core Platform & Content Delivery
 - [ ] Phase 3: AI Service Integration
 - [ ] Phase 4: Student Dashboard & Progress Tracking
