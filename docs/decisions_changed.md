@@ -28,3 +28,12 @@ This document logs significant architectural decisions and changes made througho
   - Migrated away from unstable cache functions, using standard Next.js 16 native caching functions (`"use cache"`, `cacheLife`, `cacheTag`).
   - Required upgrading to Node.js 20.9+ and TypeScript 5.1+ to satisfy Next.js 16.
   - Required explicitly separating Firebase Admin logic into `lib/firestore/catalogue.server.ts` to ensure it only runs server-side and integrates perfectly with `use cache`.
+
+## Phase 1E: Admin Panel Shell & Authorization
+- **Decision:** Custom Claims over Firestore Documents for admin roles.
+- **Change Details:**
+  - Avoided the `isAdmin: true` document field approach to eliminate database read costs and speed up authorization checks.
+  - Implemented Firebase Custom Claims (`admin: true`) which are baked into the ID token/session cookie and verifiable instantly without database access.
+  - Implemented the double-submit CSRF token pattern to securely issue `__session` cookies for Server Components, avoiding direct client-side session vulnerabilities.
+  - Adapted `layout.tsx` Server Component to wrap cookie usage within `<Suspense>` to natively support Next.js 16's Partial Prerendering (`cacheComponents`) without breaking static builds.
+  - Configured optimistic Next.js 16 `proxy.ts` middleware for fast route rejection without loading heavy Firebase Admin instances on edge.

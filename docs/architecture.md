@@ -20,3 +20,26 @@ The Taleem AI platform is divided into two primary repositories to enforce a cle
   - Hosts the highly trusted AI backend logic.
   - Manages vector embeddings, retrieval-augmented generation (RAG), and interacts securely with DeepSeek.
   - Provides strict Pydantic v2 schemas for all API payloads and configurations.
+
+## Trust Boundaries & Authentication
+- **Browser:** Never communicates directly with `taleem-ai-service`.
+- **BFF (Next.js API routes):** Handles authentication using Firebase (Client/Admin).
+- **Internal JWT Contract:** Communication between `taleem-web` (BFF) and `taleem-ai-service` happens strictly via a short-lived Internal JWT.
+  - The JWT is signed asymmetrically (RS256) by `taleem-web` using `INTERNAL_JWT_PRIVATE_KEY`.
+  - The JWT is verified by `taleem-ai-service` using the public key from `INTERNAL_JWT_PUBLIC_KEYS_JSON`.
+  - Replay protection is enforced by storing consumed JTIs in Redis with a 60-second TTL.
+
+## Environment Ownership
+Strict separation of secrets is enforced:
+
+**`taleem-web` Owns:**
+- `FIREBASE_*` (Client API keys and Admin service accounts)
+- `INTERNAL_JWT_PRIVATE_KEY` / `INTERNAL_JWT_KEY_ID`
+- `AI_SERVICE_INTERNAL_URL`
+*(No Supabase or AI provider keys are allowed here)*
+
+**`taleem-ai-service` Owns:**
+- `SUPABASE_URL` & `SUPABASE_SERVICE_ROLE_KEY`
+- `DATABASE_URL`
+- `DEEPSEEK_API_KEY` & `OCR_KEYS`
+- `INTERNAL_JWT_PUBLIC_KEYS_JSON`

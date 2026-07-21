@@ -41,11 +41,9 @@ export function useAuth() {
       await linkWithPopup(auth.currentUser, provider);
     } catch (error: any) {
       if (error.code === 'auth/credential-already-in-use') {
-        // Fallback to sign in if the credential is already linked to another account
-        const credential = GoogleAuthProvider.credentialFromError(error);
-        if (credential) {
-          await signInWithPopup(auth, provider);
-        }
+        throw new Error("This Google account is already registered. Please sign in instead.");
+      } else if (error.code === 'auth/popup-closed-by-user') {
+        throw new Error("Google sign-in was cancelled.");
       } else {
         console.error("Failed to link Google account:", error);
         throw error;

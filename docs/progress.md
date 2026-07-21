@@ -50,3 +50,22 @@ This document serves as a persistent record of the progress made across differen
   - Refactored `app/admin/(protected)/layout.tsx` to wrap `requireAdminSession` in a `<Suspense>` boundary to correctly handle Next.js 16 `cacheComponents` (PPR) dynamic requirements.
   - Configured `tsconfig.json` to properly resolve `@/*` path aliases.
   - Created standalone operator CLI script (`scripts/grant-admin.ts`) using Node 20 `--env-file` to safely append `admin: true` claims to user accounts.
+
+## Phase 1F: Admin Catalogue CRUD
+- **Status:** Completed
+- **Details:**
+  - Designed strict discriminated union schemas in `lib/validation/catalogue.ts` using `z.union`. These strictly reject forbidden fields (`active`, `display_order`, `path`) and ensure `slug` immutability during updates.
+  - Built typed `lib/repositories/firestore/catalogueRepository.ts` to strictly encapsulate path construction and expose only atomic Firestore operations (transactions and batched writes).
+  - Built `lib/services/admin/catalogueService.ts` which successfully enforces parent existence, generates sequential `display_order`, assigns default active status, and runs reorder validations.
+  - Reused `__csrf` double-submit protections and `requireAdminSession()` server-side validations in `app/api/admin/catalogue/route.ts` to authorize POST/PATCH operations.
+  - Configured `vitest.config.ts` to run automated verification for validation payloads and reorder atomic failure cases.
+  - Verified that `icon` is currently a documented part of the `Subject` schema.
+- **Verification Performed:**
+  - **Duplicate Slug (409):** Tested database collision prevention via Firestore transactions during creation.
+  - **Immutable ID Rejection:** Schema enforces dropping/disabling `slug` mutation on update payloads.
+  - **Invalid Parent (404):** Checked and throws `DomainError` via `assertParentExists` if parent hierarchy is invalid.
+  - **Unauthenticated (401) & Non-admin (403):** Session cookie and custom claim checks enforced natively by Phase 1E helpers.
+  - **CSRF & Origin Rejection:** Verified exact match against `__csrf` cookie and `X-CSRF-Token` header.
+  - **Inactive-record Visibility:** Verified `getFullAdminTree` correctly queries independent of the `active: true` constraint.
+  - **Server-controlled fields:** Tested schema rejections if client submits `display_order`, `active`, or `created_at` on creation.
+  - **Atomic reorder failure cases:** Covered with Vitest suites (length mismatch, duplicates, foreign IDs throw strictly before any Firestore update is executed).
