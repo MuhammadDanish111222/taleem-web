@@ -33,6 +33,13 @@ export default function TestUploadPage() {
       if (targetEndpoint === "real") {
         url = "/api/admin/content/upload";
 
+        // Auto-seed required test hierarchy in Firestore if not already present
+        try {
+          await fetch("/api/test-upload/seed", { method: "POST" });
+        } catch {
+          // ignore error if already seeded
+        }
+
         // Required Metadata fields for real route
         formData.append("operation", "create_resource");
         formData.append("type", "book");
@@ -155,7 +162,7 @@ export default function TestUploadPage() {
         </div>
 
         {/* Current Mode Info */}
-        <div className="bg-indigo-950/40 border border-indigo-500/30 p-4 rounded-xl text-xs text-indigo-200 flex items-center justify-between">
+        <div className="bg-indigo-950/40 border border-indigo-500/30 p-4 rounded-xl text-xs text-indigo-200 flex items-center justify-between flex-wrap gap-3">
           <span>
             Active Endpoint:{" "}
             <strong className="text-white font-mono">
@@ -164,6 +171,22 @@ export default function TestUploadPage() {
                 : "/api/test-upload (Diagnostic Only: multipartUpload.ts + pdfValidation.ts)"}
             </strong>
           </span>
+
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                const res = await fetch("/api/test-upload/seed", { method: "POST" });
+                const data = await res.json();
+                alert(data.message || "Seeded successfully");
+              } catch (err: any) {
+                alert("Seed failed: " + err.message);
+              }
+            }}
+            className="px-3 py-1.5 bg-indigo-700 hover:bg-indigo-600 text-white rounded-lg font-semibold text-xs transition"
+          >
+            🌱 Seed Firestore Test Hierarchy (fbise / class-9 / physics)
+          </button>
         </div>
 
         {/* Quick Presets */}

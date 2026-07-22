@@ -53,3 +53,8 @@ This document logs significant architectural decisions and changes made througho
   - Pure byte-by-byte streaming metadata parsing for PDFs risks missed corruption/encryption headers. `pdfjs-dist` natively supports partial range-based reads (`PDFDataRangeTransport`), but fails inside backend ESM environments with strict worker-thread boundaries.
   - To maintain maximum strict validation against corrupt, encrypted, or spoofed payloads, we standardized on using `pdf-lib` within an isolated Node Worker. This requires loading the stream into a `Buffer`.
   - To mitigate DoS and memory exhaustions from this deviation, a hard **50MB size limit** is rigidly enforced at the `busboy` streaming pipeline layer. Oversized files are rejected and unlinked *before* entering the parsing buffer.
+- **Decision:** OAuth2 User Authentication Mode for Personal Google Drive Accounts.
+- **Change Details:**
+  - Standard Service Accounts lack storage quotas on personal Google accounts (@gmail.com) and cannot own personal My Drive files without Workspace Shared Drives.
+  - Implemented `GOOGLE_DRIVE_AUTH_MODE=oauth_user` using `google.auth.OAuth2` with `GOOGLE_DRIVE_REFRESH_TOKEN` alongside Workspace `shared_drive` and `delegated` modes.
+  - Created automated CLI authorization tool `npm run drive:authorize` to handle one-time authorization and automatic creation of the target `"Taleem AI Content"` folder in personal My Drive.

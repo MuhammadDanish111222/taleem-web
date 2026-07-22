@@ -80,3 +80,15 @@ This document serves as a persistent record of the progress made across differen
   - Implemented Google Drive provider supporting Shared Drives and Domain-Wide Delegation.
   - Restricted all direct client reads/writes via strict Firestore rules.
   - Added exhaustive Firestore emulator and integration tests.
+
+## Phase 2B: Secure Upload, Validation, OAuth2 Personal/Workspace Drive Storage, and Publishing Workflow
+- **Status:** Completed
+- **Details:**
+  - Developed stream-aware multipart upload parser (`lib/security/multipartUpload.ts`) with chunk magic bytes inspection (`%PDF-`), strict payload limits (50MB max file size, 20 fields max), and safe stream ownership.
+  - Implemented Worker Thread PDF validation (`lib/security/pdfValidation.ts` & `pdfParserWorker.js`) using `pdf-lib` to inspect PDF structure, page count limits (500 pages max), and encrypted PDF rejection (`PDF_ENCRYPTED`).
+  - Built state machine `UploadService` managing `UploadTransaction` states (`pending` ➔ `uploaded` ➔ `committed` / `failed` / `cleanup_required`) with HMAC-SHA256 idempotency key replay and automatic Drive compensation cleanup for interrupted uploads.
+  - Supported `GOOGLE_DRIVE_AUTH_MODE=oauth_user` mode using `google.auth.OAuth2` for personal My Drive accounts alongside `shared_drive` and `delegated` modes.
+  - Created one-time CLI authorization tool `npm run drive:authorize` (`scripts/authorizeDrive.ts`) to automate OAuth consent, token exchange, and automatic creation of the target `"Taleem AI Content"` folder in personal Google Drive.
+  - Added automated seeding route `/api/test-upload/seed` and UI test page `/test-upload` with live Firestore document inspection.
+  - Enforced strict production 404 gating via `proxy.ts` for all `/test-*` routes in production.
+  - Verified 100% pass across unit test suite (52 tests) and real Firestore Emulator integration suite (40 tests including `scripts/manual-test-phase2b.test.ts`).
