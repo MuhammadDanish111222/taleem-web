@@ -56,8 +56,8 @@ vi.mock("../../lib/services/admin/resourceService", () => ({
 
 class MockDriveProvider implements StorageProvider {
   async upload(input: any): Promise<any> {
-    if (input.body && typeof input.body.resume === "function") {
-      input.body.resume();
+    if (input.body && typeof input.body.destroy === "function") {
+      input.body.destroy();
     }
     return {
       provider: "google_drive",
