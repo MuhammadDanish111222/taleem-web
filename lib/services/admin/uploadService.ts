@@ -154,8 +154,12 @@ export class UploadService {
 
     // 3. Drive Upload
     let storageMetadata;
+    const fileStream = fs.createReadStream(tempFile.filepath);
+    fileStream.on("error", (err) => {
+      // Prevent unhandled stream error events from unlinked temp files
+    });
+
     try {
-      const fileStream = fs.createReadStream(tempFile.filepath);
       storageMetadata = await this.storageProvider.upload({
         filename: validatedPdf.originalFilename,
         mimeType: "application/pdf",
@@ -163,6 +167,7 @@ export class UploadService {
         body: fileStream,
       });
     } catch (err: any) {
+      fileStream.destroy();
       await this.failTransaction(transactionId, "INTERNAL_ERROR", err.message);
       throw new UploadError("INTERNAL_ERROR", "Storage provider upload failed.");
     }

@@ -4,6 +4,7 @@ import { StorageProvider } from "../../lib/storage/StorageProvider";
 import { createTempFile } from "../../lib/security/tempFile";
 import { validatePdf } from "../../lib/security/pdfValidation";
 import { PDFDocument } from "pdf-lib";
+import * as crypto from "crypto";
 
 // In-Memory Firestore Document Stores for Integration Testing
 const txStore = new Map<string, any>();
@@ -55,6 +56,9 @@ vi.mock("../../lib/services/admin/resourceService", () => ({
 
 class MockDriveProvider implements StorageProvider {
   async upload(input: any): Promise<any> {
+    if (input.body && typeof input.body.resume === "function") {
+      input.body.resume();
+    }
     return {
       provider: "google_drive",
       storageKey: "mock-drive-key-123",
@@ -70,7 +74,7 @@ class MockDriveProvider implements StorageProvider {
   async delete(): Promise<void> {}
 }
 
-describe("Full End-to-End Upload Service Pipeline (Firestore & Transaction Verification)", () => {
+describe("Full End-to-End Upload Service Pipeline (State Machine Verification)", () => {
   beforeEach(() => {
     txStore.clear();
     resourceStore.clear();
@@ -84,6 +88,7 @@ describe("Full End-to-End Upload Service Pipeline (Firestore & Transaction Verif
     pdfDoc.addPage([595.28, 841.89]);
     const pdfBytes = await pdfDoc.save();
     const pdfBuffer = Buffer.from(pdfBytes);
+    const actualSha256 = crypto.createHash("sha256").update(pdfBuffer).digest("hex");
 
     // Write to real temp file
     const tempFile = await createTempFile();
@@ -96,7 +101,7 @@ describe("Full End-to-End Upload Service Pipeline (Firestore & Transaction Verif
     // Run PDF validation (magic bytes check + worker thread pdf-lib parsing)
     const validatedPdf = await validatePdf({
       tempFile,
-      sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      sha256: actualSha256,
       sizeBytes: pdfBuffer.length,
       originalFilename: "full_pipeline_test.pdf",
       mimeType: "application/pdf",
@@ -104,6 +109,7 @@ describe("Full End-to-End Upload Service Pipeline (Firestore & Transaction Verif
     });
 
     expect(validatedPdf.pageCount).toBe(1);
+    expect(validatedPdf.sha256).toBe(actualSha256);
 
     const adminUid = "admin-user-999";
     const requestId = "req-uuid-12345";
@@ -134,7 +140,7 @@ describe("Full End-to-End Upload Service Pipeline (Firestore & Transaction Verif
     expect(result.resourceId).toBeDefined();
     expect(result.versionId).toBeDefined();
 
-    // 3. Inspect committed Firestore transaction document
+    // 3. Inspect committed transaction record
     const txDoc = txStore.get(result.transactionId);
     expect(txDoc).not.toBeUndefined();
     expect(txDoc?.state).toBe("committed");
@@ -142,8 +148,9 @@ describe("Full End-to-End Upload Service Pipeline (Firestore & Transaction Verif
     expect(txDoc?.committedResourceId).toBe(result.resourceId);
     expect(txDoc?.committedVersionId).toBe(result.versionId);
     expect(txDoc?.pageCount).toBe(1);
+    expect(txDoc?.sha256).toBe(actualSha256);
 
-    // 4. Inspect committed Firestore resource document
+    // 4. Inspect committed resource record
     const resourceDoc = resourceStore.get(result.resourceId);
     expect(resourceDoc).not.toBeUndefined();
     expect(resourceDoc?.title).toBe("Complete Physics Guide Class 9");
@@ -169,9 +176,5 @@ describe("Full End-to-End Upload Service Pipeline (Firestore & Transaction Verif
 
     // Cleanup temp file
     await tempFile.cleanup();
-
-    // Output formatted Firestore docs for reporting
-    console.log("COMMITTED_TRANSACTION_DOC:\n" + JSON.stringify(txDoc, null, 2));
-    console.log("COMMITTED_RESOURCE_DOC:\n" + JSON.stringify(resourceDoc, null, 2));
   });
 });
