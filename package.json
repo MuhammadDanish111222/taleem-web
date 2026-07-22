@@ -13,7 +13,8 @@
     "test:phase2a": "npm run test:unit && npm run test:rules",
     "test:drive:smoke": "vitest run tests/storage/smoke.test.ts",
     "typecheck": "tsc --noEmit",
-    "scan:bundle": "node scripts/scan-bundle.js"
+    "scan:bundle": "node scripts/scan-bundle.js",
+    "drive:authorize": "tsx scripts/authorizeDrive.ts"
   },
   "dependencies": {
     "@googleapis/drive": "^20.2.0",

@@ -15,23 +15,32 @@ export class GoogleDriveProvider implements StorageProvider {
     if (injectedDrive) {
       this.drive = injectedDrive;
     } else {
-      let auth;
-      if (this.config.authMode === "delegated") {
+      let auth: any;
+      if (this.config.authMode === "oauth_user") {
+        const oauth2Client = new google.auth.OAuth2(
+          this.config.clientId,
+          this.config.clientSecret
+        );
+        oauth2Client.setCredentials({
+          refresh_token: this.config.refreshToken,
+        });
+        auth = oauth2Client;
+      } else if (this.config.authMode === "delegated") {
         const jwtClient = new google.auth.JWT({
           email: this.config.clientEmail,
           key: this.config.privateKey,
-          scopes: ["https://www.googleapis.com/auth/drive"],
+          scopes: ["https://www.googleapis.com/auth/drive.file"],
           subject: this.config.delegatedUser,
         });
         auth = jwtClient;
       } else {
-        // "service_account" or "shared_drive"
+        // "shared_drive"
         auth = new google.auth.GoogleAuth({
           credentials: {
             client_email: this.config.clientEmail,
             private_key: this.config.privateKey,
           },
-          scopes: ["https://www.googleapis.com/auth/drive"],
+          scopes: ["https://www.googleapis.com/auth/drive.file"],
         });
       }
 
