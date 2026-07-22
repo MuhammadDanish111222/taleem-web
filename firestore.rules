@@ -51,6 +51,10 @@ service cloud.firestore {
     match /admin_audit_logs/{logId} {
       allow read, write: if false;
     }
+
+    match /upload_transactions/{transactionId} {
+      allow read, write: if false;
+    }
     
     // Default deny all client writes (Admin SDK bypasses this)
     // Default deny any reads not explicitly allowed above

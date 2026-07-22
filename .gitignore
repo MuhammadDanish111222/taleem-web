@@ -18,3 +18,8 @@ npm-debug.log*
 .env.development.local
 .env.test.local
 .env.production.local
+
+# JDK for testing/development
+/jdk/
+/jdk.zip
+firestore-debug.log
