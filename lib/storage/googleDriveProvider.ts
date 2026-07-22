@@ -16,7 +16,16 @@ export class GoogleDriveProvider implements StorageProvider {
       this.drive = injectedDrive;
     } else {
       let auth;
-      if (this.config.authMode === "shared_drive") {
+      if (this.config.authMode === "delegated") {
+        const jwtClient = new google.auth.JWT({
+          email: this.config.clientEmail,
+          key: this.config.privateKey,
+          scopes: ["https://www.googleapis.com/auth/drive"],
+          subject: this.config.delegatedUser,
+        });
+        auth = jwtClient;
+      } else {
+        // "service_account" or "shared_drive"
         auth = new google.auth.GoogleAuth({
           credentials: {
             client_email: this.config.clientEmail,
@@ -24,14 +33,6 @@ export class GoogleDriveProvider implements StorageProvider {
           },
           scopes: ["https://www.googleapis.com/auth/drive"],
         });
-      } else {
-        const jwtClient = new google.auth.JWT({
-          email: this.config.clientEmail,
-          key: this.config.privateKey,
-          scopes: ["https://www.googleapis.com/auth/drive"],
-          subject: this.config.delegatedUser
-        });
-        auth = jwtClient;
       }
 
       this.drive = google.drive({ version: "v3", auth });
@@ -43,45 +44,29 @@ export class GoogleDriveProvider implements StorageProvider {
       throw new StorageError("STORAGE_INVALID_METADATA", "Only application/pdf is allowed");
     }
 
-    try {
-      return await withBoundedRetry(async () => {
-        const res = await this.drive.files.create({
-          requestBody: {
-            name: input.filename,
-            parents: [this.config.contentFolderId],
-          },
-          media: {
-            mimeType: input.mimeType,
-            body: input.body,
-          },
-          fields: "id, name, mimeType, size, headRevisionId, version, capabilities, driveId, trashed",
-          supportsAllDrives: true,
-        }, {
-          signal: input.signal,
-        });
-
-        const file = res.data;
-        if (!file.id) {
-          throw new StorageError("STORAGE_INVALID_METADATA", "No file ID returned");
-        }
-        
-        return this.mapToFileMetadata(file);
-      }, this.config.maxAttempts, input.signal);
-    } catch (err: any) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("⚠️ Local Google Drive API unconfigured. Using dev storage key.");
-        return {
-          provider: "google_drive",
-          storageKey: `dev-drive-file-${Date.now()}`,
+    return withBoundedRetry(async () => {
+      const res = await this.drive.files.create({
+        requestBody: {
           name: input.filename,
-          mimeType: "application/pdf",
-          sizeBytes: input.sizeBytes,
-          providerRevision: "dev-rev-1",
-          canDownload: true,
-        };
+          parents: [this.config.contentFolderId],
+        },
+        media: {
+          mimeType: input.mimeType,
+          body: input.body,
+        },
+        fields: "id, name, mimeType, size, headRevisionId, version, capabilities, driveId, trashed",
+        supportsAllDrives: true,
+      }, {
+        signal: input.signal,
+      });
+
+      const file = res.data;
+      if (!file.id) {
+        throw new StorageError("STORAGE_INVALID_METADATA", "No file ID returned");
       }
-      throw err;
-    }
+      
+      return this.mapToFileMetadata(file);
+    }, this.config.maxAttempts, input.signal);
   }
 
   async getMetadata(storageKey: string, options?: StorageRequestOptions): Promise<StoredObjectMetadata> {
@@ -177,7 +162,7 @@ export class GoogleDriveProvider implements StorageProvider {
     if (file.mimeType !== "application/pdf") {
       throw new StorageError("STORAGE_INVALID_METADATA", "File is not application/pdf");
     }
-    if (file.driveId && file.driveId !== this.config.sharedDriveId) {
+    if (this.config.sharedDriveId && file.driveId && file.driveId !== this.config.sharedDriveId) {
       throw new StorageError("STORAGE_PERMISSION_DENIED", "File is outside configured shared drive");
     }
     const canDownload = file.capabilities?.canDownload ?? true;
