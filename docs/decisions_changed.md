@@ -94,5 +94,9 @@ This document logs significant architectural decisions and changes made througho
 - **Change Details:**
   - Path-scoped security headers for `/content/*` enforce `X-Content-Type-Options: nosniff` and `Content-Security-Policy: default-src 'self'; script-src 'self'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; frame-src 'self'; object-src 'none';`.
   - Self-hosted PDF.js web worker bundle (`public/pdf.worker.min.mjs`) is used directly without external CDN dependencies.
+- **Decision:** Bounded Candidate Scanning for In-Memory Past-Paper Filters (`MAX_CANDIDATE_BATCHES_PER_REQUEST = 5`).
+- **Change Details:**
+  - `listPublicResources` uses a bounded loop scanning up to 5 raw candidate batches per request when past paper filters are active.
+  - This prevents Firestore index explosion while enforcing explicit bounded limits on read costs and latency per request (consistent with the explicit bounded limits search design philosophy). Cursor continuation (`nextCursor`) tracks the raw scan position to ensure seamless pagination across calls without duplicate or skipped records.
 
 

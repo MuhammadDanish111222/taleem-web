@@ -364,6 +364,206 @@ describe('Resource Service (Integration/Unit)', () => {
     expect(fetchedIds).toEqual(createdIds);
     expect(new Set(fetchedIds).size).toBe(5);
   });
+
+  it('accumulates matches across multiple raw batches when matches are sparsely distributed', async () => {
+    const { listPublicResources } = await import('../../lib/resources/public');
+    const boardId = 'board-sparse-' + Date.now();
+
+    // Create 5 raw past papers, but only item 1 and item 5 match paperYear 2024
+    const matchingIds: string[] = [];
+    for (let i = 1; i <= 5; i++) {
+      const year = i === 1 || i === 5 ? 2024 : 2020;
+      const r = await createDraftResourceWithInitialVersion(
+        actor,
+        {
+          ...baseInput,
+          type: 'past_paper',
+          boardId,
+          paperYear: year,
+          title: `Past Paper ${i}`,
+          displayOrder: i,
+        },
+        baseVersionInput
+      );
+      await publishResource(actor, r.id);
+      if (year === 2024) matchingIds.push(r.id);
+    }
+
+    // Request limit=2 with paperYear=2024.
+    // Raw batch 1 (limit 2) has item 1 (match) and item 2 (miss).
+    // Loop continues to batch 2 & 3 until item 5 (match) is found.
+    const res = await listPublicResources({
+      boardId,
+      classId: baseInput.classId,
+      subjectId: baseInput.subjectId,
+      type: 'past_paper',
+      paperYear: 2024,
+      limit: 2,
+    });
+
+    expect(res.data.length).toBe(2);
+    expect(res.data.map((d) => d.id)).toEqual(matchingIds);
+  });
+
+  it('correctly resumes pagination from the raw scan position using nextCursor', async () => {
+    const { listPublicResources } = await import('../../lib/resources/public');
+    const boardId = 'board-resume-' + Date.now();
+
+    // Create 6 raw items, items 1, 3, 5, 6 match session "annual"
+    const expectedPage1: string[] = [];
+    const expectedPage2: string[] = [];
+
+    for (let i = 1; i <= 6; i++) {
+      const session = i === 2 || i === 4 ? 'supplementary' : 'annual';
+      const r = await createDraftResourceWithInitialVersion(
+        actor,
+        {
+          ...baseInput,
+          type: 'past_paper',
+          boardId,
+          paperSession: session,
+          displayOrder: i,
+        },
+        baseVersionInput
+      );
+      await publishResource(actor, r.id);
+      if (session === 'annual') {
+        if (expectedPage1.length < 2) expectedPage1.push(r.id);
+        else expectedPage2.push(r.id);
+      }
+    }
+
+    // Fetch page 1 (limit 2)
+    const page1 = await listPublicResources({
+      boardId,
+      classId: baseInput.classId,
+      subjectId: baseInput.subjectId,
+      type: 'past_paper',
+      paperSession: 'annual',
+      limit: 2,
+    });
+
+    expect(page1.data.map((d) => d.id)).toEqual(expectedPage1);
+    expect(page1.nextCursor).not.toBeNull();
+
+    // Fetch page 2 using returned cursor
+    const page2 = await listPublicResources({
+      boardId,
+      classId: baseInput.classId,
+      subjectId: baseInput.subjectId,
+      type: 'past_paper',
+      paperSession: 'annual',
+      limit: 2,
+      cursor: page1.nextCursor!,
+    });
+
+    expect(page2.data.map((d) => d.id)).toEqual(expectedPage2);
+
+    // Verify zero duplicates across page 1 and page 2
+    const allFetched = [...page1.data.map((d) => d.id), ...page2.data.map((d) => d.id)];
+    expect(new Set(allFetched).size).toBe(4);
+  });
+
+  it('bounds candidate scanning in pathological zero-match scenarios up to MAX_CANDIDATE_BATCHES_PER_REQUEST', async () => {
+    const { listPublicResources, MAX_CANDIDATE_BATCHES_PER_REQUEST } = await import('../../lib/resources/public');
+    const boardId = 'board-pathological-' + Date.now();
+
+    // Create 15 raw past papers, all with paperYear 2000
+    for (let i = 1; i <= 15; i++) {
+      const r = await createDraftResourceWithInitialVersion(
+        actor,
+        {
+          ...baseInput,
+          type: 'past_paper',
+          boardId,
+          paperYear: 2000,
+          displayOrder: i,
+        },
+        baseVersionInput
+      );
+      await publishResource(actor, r.id);
+    }
+
+    // Query for non-existent paperYear 1990 with limit=2
+    // Expected behavior: scans exactly MAX_CANDIDATE_BATCHES_PER_REQUEST (5) batches of size 2 = 10 raw docs scanned.
+    // Returns 0 matches and a non-null nextCursor pointing to the 10th raw doc.
+    const res = await listPublicResources({
+      boardId,
+      classId: baseInput.classId,
+      subjectId: baseInput.subjectId,
+      type: 'past_paper',
+      paperYear: 1990,
+      limit: 2,
+    });
+
+    expect(res.data.length).toBe(0);
+    expect(res.nextCursor).not.toBeNull();
+  });
+
+  it('verifies cursor pagination stability with an active past-paper filter', async () => {
+    const { listPublicResources } = await import('../../lib/resources/public');
+    const boardId = 'board-active-filter-' + Date.now();
+
+    const createdIds: string[] = [];
+    for (let i = 1; i <= 5; i++) {
+      const r = await createDraftResourceWithInitialVersion(
+        actor,
+        {
+          ...baseInput,
+          type: 'past_paper',
+          boardId,
+          paperYear: 2023,
+          paperSession: 'annual',
+          displayOrder: i,
+        },
+        baseVersionInput
+      );
+      await publishResource(actor, r.id);
+      createdIds.push(r.id);
+    }
+
+    const page1 = await listPublicResources({
+      boardId,
+      classId: baseInput.classId,
+      subjectId: baseInput.subjectId,
+      type: 'past_paper',
+      paperYear: 2023,
+      paperSession: 'annual',
+      limit: 2,
+    });
+    expect(page1.data.length).toBe(2);
+    expect(page1.nextCursor).not.toBeNull();
+
+    const page2 = await listPublicResources({
+      boardId,
+      classId: baseInput.classId,
+      subjectId: baseInput.subjectId,
+      type: 'past_paper',
+      paperYear: 2023,
+      paperSession: 'annual',
+      limit: 2,
+      cursor: page1.nextCursor!,
+    });
+    expect(page2.data.length).toBe(2);
+    expect(page2.nextCursor).not.toBeNull();
+
+    const page3 = await listPublicResources({
+      boardId,
+      classId: baseInput.classId,
+      subjectId: baseInput.subjectId,
+      type: 'past_paper',
+      paperYear: 2023,
+      paperSession: 'annual',
+      limit: 2,
+      cursor: page2.nextCursor!,
+    });
+    expect(page3.data.length).toBe(1);
+    expect(page3.nextCursor).toBeNull();
+
+    const fetchedIds = [...page1.data, ...page2.data, ...page3.data].map((d) => d.id);
+    expect(fetchedIds).toEqual(createdIds);
+    expect(new Set(fetchedIds).size).toBe(5);
+  });
 });
 
 
