@@ -24,13 +24,14 @@ export type DriveConfig = z.infer<typeof driveConfigSchema>;
 
 export function getDriveConfig(): DriveConfig {
   const env = process.env;
+  const isDev = process.env.NODE_ENV !== "production";
   
   const rawConfig = {
     authMode: env.GOOGLE_DRIVE_AUTH_MODE || "shared_drive",
-    clientEmail: env.GOOGLE_DRIVE_CLIENT_EMAIL || "",
-    privateKey: (env.GOOGLE_DRIVE_PRIVATE_KEY || "").replace(/\\n/g, "\n"),
-    sharedDriveId: env.GOOGLE_DRIVE_SHARED_DRIVE_ID || "",
-    contentFolderId: env.GOOGLE_DRIVE_CONTENT_FOLDER_ID || "",
+    clientEmail: env.GOOGLE_DRIVE_CLIENT_EMAIL || (isDev ? "dev-drive@taleem.iam.gserviceaccount.com" : ""),
+    privateKey: (env.GOOGLE_DRIVE_PRIVATE_KEY || (isDev ? "dev-private-key" : "")).replace(/\\n/g, "\n"),
+    sharedDriveId: env.GOOGLE_DRIVE_SHARED_DRIVE_ID || (isDev ? "dev-shared-drive-id" : ""),
+    contentFolderId: env.GOOGLE_DRIVE_CONTENT_FOLDER_ID || (isDev ? "dev-content-folder-id" : ""),
     delegatedUser: env.GOOGLE_DRIVE_DELEGATED_USER || undefined,
     requestTimeoutMs: env.GOOGLE_DRIVE_REQUEST_TIMEOUT_MS ? parseInt(env.GOOGLE_DRIVE_REQUEST_TIMEOUT_MS, 10) : 15000,
     maxAttempts: env.GOOGLE_DRIVE_MAX_ATTEMPTS ? parseInt(env.GOOGLE_DRIVE_MAX_ATTEMPTS, 10) : 3,

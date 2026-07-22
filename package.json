@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "test": "vitest run --no-file-parallelism",
-    "test:unit": "vitest run --exclude tests/firestore/** --exclude tests/resources/** --exclude tests/firestore.rules.test.ts --exclude scripts/manual-test-phase2a.test.ts --exclude tests/storage/smoke.test.ts",
+    "test:unit": "vitest run --exclude tests/firestore/** --exclude tests/resources/** --exclude tests/firestore.rules.test.ts --exclude scripts/manual-test-phase2a.test.ts --exclude scripts/manual-test-phase2b.test.ts --exclude tests/storage/smoke.test.ts",
     "test:rules": "npx -y firebase-tools emulators:exec --only firestore \"vitest run --no-file-parallelism tests/firestore tests/resources tests/firestore.rules.test.ts scripts/manual-test-phase2a.test.ts scripts/manual-test-phase2b.test.ts\"",
     "test:phase2a": "npm run test:unit && npm run test:rules",
     "test:drive:smoke": "vitest run tests/storage/smoke.test.ts",

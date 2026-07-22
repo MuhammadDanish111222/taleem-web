@@ -44,11 +44,13 @@ export default function TestUploadPage() {
         formData.append("curriculumVersion", "2024");
         formData.append("displayOrder", "1");
 
-        // Set CSRF Cookie
-        document.cookie = "__csrf=test-csrf-token; path=/;";
+        // Fetch a valid CSRF token from the official CSRF endpoint
+        const csrfRes = await fetch("/api/auth/csrf", { cache: "no-store" });
+        const csrfData = await csrfRes.json();
+        const csrfToken = csrfData.csrfToken;
 
         // Required headers for real route
-        headers["X-CSRF-Token"] = "test-csrf-token";
+        headers["X-CSRF-Token"] = csrfToken;
         headers["Idempotency-Key"] = `idem-test-${Date.now()}`;
       }
 
