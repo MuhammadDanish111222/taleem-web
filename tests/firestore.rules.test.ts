@@ -84,4 +84,37 @@ describe('Firestore Security Rules', () => {
     const authDb = testEnv.authenticatedContext('user1').firestore();
     await assertFails(setDoc(doc(authDb, 'boards/board1'), { active: true }));
   });
+
+  it('allows reading active examination boards when parent board is active', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      await setDoc(doc(db, 'boards/board1'), { active: true });
+      await setDoc(doc(db, 'boards/board1/examinationBoards/lhr'), { active: true, name: 'BISE Lahore' });
+    });
+    const db = getUnauthedDb();
+    await assertSucceeds(getDoc(doc(db, 'boards/board1/examinationBoards/lhr')));
+  });
+
+  it('denies reading active examination boards when parent board is inactive', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      await setDoc(doc(db, 'boards/board1'), { active: false });
+      await setDoc(doc(db, 'boards/board1/examinationBoards/lhr'), { active: true, name: 'BISE Lahore' });
+    });
+    const db = getUnauthedDb();
+    await assertFails(getDoc(doc(db, 'boards/board1/examinationBoards/lhr')));
+  });
+
+  it('allows reading active chapter node with parentNodeId when board/class/subject are active', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      await setDoc(doc(db, 'boards/board1'), { active: true });
+      await setDoc(doc(db, 'boards/board1/classes/c1'), { active: true });
+      await setDoc(doc(db, 'boards/board1/classes/c1/subjects/s1'), { active: true });
+      await setDoc(doc(db, 'boards/board1/classes/c1/subjects/s1/chapters/ch1'), { active: true, parentNodeId: 'parent-ch' });
+    });
+    const db = getUnauthedDb();
+    await assertSucceeds(getDoc(doc(db, 'boards/board1/classes/c1/subjects/s1/chapters/ch1')));
+  });
 });
+

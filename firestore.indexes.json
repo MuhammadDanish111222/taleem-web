@@ -33,6 +33,14 @@
       ]
     },
     {
+      "collectionGroup": "examinationBoards",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "active", "order": "ASCENDING" },
+        { "fieldPath": "display_order", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "resources",
       "queryScope": "COLLECTION",
       "fields": [

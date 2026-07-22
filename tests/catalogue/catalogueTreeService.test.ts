@@ -215,7 +215,7 @@ describe("CatalogueTreeService & Bounded Query Reads", () => {
 
     const grouped = await getSubjectPastPapersGrouped("punjab", "9", "physics");
 
-    // QUERY COUNT ASSERTION: Exactly 1 read for past papers
+    // QUERY COUNT ASSERTION: Exactly 1 bounded Firestore query call for past papers
     expect(queryCount).toBe(1);
 
     // Past Paper Grouping assertions
@@ -229,4 +229,81 @@ describe("CatalogueTreeService & Bounded Query Reads", () => {
     expect(nullBoardGroup.years[0].year).toBe(2023);
     expect(nullBoardGroup.years[0].papers[0].title).toBe("Federal 2023 Past Paper (Single/No board)");
   });
+
+  it("should prevent cross-board and cross-class leakage when subject IDs are identical (e.g. 'physics')", async () => {
+    // Both Punjab Class 9 Physics and Federal Class 10 Physics share the slug 'physics'
+    const punjabChapters = [
+      { id: "punjab-phys-ch1", data: () => ({ title: "Punjab Phys Ch1", slug: "punjab-phys-ch1", display_order: 1, active: true, parentNodeId: null }) }
+    ];
+    const federalChapters = [
+      { id: "federal-phys-ch1", data: () => ({ title: "Federal Phys Ch1", slug: "federal-phys-ch1", display_order: 1, active: true, parentNodeId: null }) }
+    ];
+
+    const punjabResources = [
+      {
+        id: "res-punjab",
+        data: () => ({
+          type: "note",
+          title: "Punjab Physics Note",
+          boardId: "punjab",
+          classId: "9",
+          subjectId: "physics",
+          chapterId: "punjab-phys-ch1",
+          status: "published",
+          language: "en",
+          curriculumVersion: "2024",
+          displayOrder: 1,
+        })
+      }
+    ];
+
+    const mockDb = {
+      collection: (path: string) => {
+        let currentBoardId = "";
+        let currentClassId = "";
+        let currentSubjectId = "";
+        const whereClauses: [string, string, any][] = [];
+
+        return {
+          where: function (field: string, op: string, val: any) {
+            whereClauses.push([field, op, val]);
+            return this;
+          },
+          orderBy: function () {
+            return this;
+          },
+          get: async () => {
+            if (path.includes("boards/punjab/classes/9/subjects/physics/chapters")) {
+              return { docs: punjabChapters };
+            }
+            if (path.includes("boards/federal/classes/10/subjects/physics/chapters")) {
+              return { docs: federalChapters };
+            }
+            if (path === "resources") {
+              const matchesBoard = whereClauses.find(([f, o, v]) => f === "boardId" && v === "punjab");
+              const matchesClass = whereClauses.find(([f, o, v]) => f === "classId" && v === "9");
+              if (matchesBoard && matchesClass) {
+                return { docs: punjabResources };
+              }
+              return { docs: [] };
+            }
+            return { docs: [] };
+          }
+        };
+      }
+    };
+
+    vi.spyOn(adminFirebase, "getAdminFirestore").mockReturnValue(mockDb as any);
+
+    // Fetch Punjab Class 9 Physics
+    const punjabTree = await getSubjectNotesTree("punjab", "9", "physics", "published");
+    expect(punjabTree.length).toBe(1);
+    expect(punjabTree[0].id).toBe("punjab-phys-ch1");
+    expect(punjabTree[0].resources[0].title).toBe("Punjab Physics Note");
+
+    // Fetch Federal Class 10 Physics -> should NOT return Punjab chapters or resources
+    const federalTree = await getSubjectNotesTree("federal", "10", "physics", "published");
+    expect(federalTree.length).toBe(0); // No resources in mock for Federal, so pruned
+  });
 });
+

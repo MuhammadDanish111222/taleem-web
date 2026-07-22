@@ -17,6 +17,11 @@ service cloud.firestore {
     match /boards/{boardId} {
       allow read: if resource.data.active == true;
       
+      match /examinationBoards/{examinationBoardId} {
+        allow read: if resource.data.active == true
+                    && get(/databases/$(database)/documents/boards/$(boardId)).data.active == true;
+      }
+
       match /classes/{classId} {
         allow read: if resource.data.active == true
                     && get(/databases/$(database)/documents/boards/$(boardId)).data.active == true;
@@ -41,7 +46,9 @@ service cloud.firestore {
                   && get(/databases/$(database)/documents/boards/$(resource.data.boardId)).data.active == true
                   && get(/databases/$(database)/documents/boards/$(resource.data.boardId)/classes/$(resource.data.classId)).data.active == true
                   && get(/databases/$(database)/documents/boards/$(resource.data.boardId)/classes/$(resource.data.classId)/subjects/$(resource.data.subjectId)).data.active == true
-                  && (resource.data.chapterId == null || get(/databases/$(database)/documents/boards/$(resource.data.boardId)/classes/$(resource.data.classId)/subjects/$(resource.data.subjectId)/chapters/$(resource.data.chapterId)).data.active == true);
+                  && (resource.data.get('chapterId', null) == null || get(/databases/$(database)/documents/boards/$(resource.data.boardId)/classes/$(resource.data.classId)/subjects/$(resource.data.subjectId)/chapters/$(resource.data.chapterId)).data.active == true)
+                  && (resource.data.get('examinationBoardId', null) == null || get(/databases/$(database)/documents/boards/$(resource.data.boardId)/examinationBoards/$(resource.data.examinationBoardId)).data.active == true);
+
       
       match /versions/{versionId} {
         allow read, write: if false;
