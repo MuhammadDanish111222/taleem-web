@@ -22,19 +22,6 @@ const nextConfig: NextConfig = {
           },
         ],
       },
-      {
-        source: "/api/content/:path*",
-        headers: [
-          {
-            key: "X-Content-Type-Options",
-            value: "nosniff",
-          },
-          {
-            key: "Cache-Control",
-            value: "private, no-cache, must-revalidate",
-          },
-        ],
-      },
     ];
   },
 };

@@ -89,36 +89,6 @@
       ]
     },
     {
-      "collectionGroup": "resources",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "boardId", "order": "ASCENDING" },
-        { "fieldPath": "classId", "order": "ASCENDING" },
-        { "fieldPath": "examinationBoardId", "order": "ASCENDING" },
-        { "fieldPath": "paperSession", "order": "ASCENDING" },
-        { "fieldPath": "paperType", "order": "ASCENDING" },
-        { "fieldPath": "paperYear", "order": "ASCENDING" },
-        { "fieldPath": "status", "order": "ASCENDING" },
-        { "fieldPath": "subjectId", "order": "ASCENDING" },
-        { "fieldPath": "type", "order": "ASCENDING" },
-        { "fieldPath": "displayOrder", "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "resources",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "boardId", "order": "ASCENDING" },
-        { "fieldPath": "classId", "order": "ASCENDING" },
-        { "fieldPath": "examinationBoardId", "order": "ASCENDING" },
-        { "fieldPath": "paperYear", "order": "ASCENDING" },
-        { "fieldPath": "status", "order": "ASCENDING" },
-        { "fieldPath": "subjectId", "order": "ASCENDING" },
-        { "fieldPath": "type", "order": "ASCENDING" },
-        { "fieldPath": "displayOrder", "order": "ASCENDING" }
-      ]
-    },
-    {
       "collectionGroup": "upload_transactions",
       "queryScope": "COLLECTION",
       "fields": [

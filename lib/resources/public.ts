@@ -62,19 +62,6 @@ export async function listPublicResources(input: PublicResourceQuery): Promise<P
   if (query.type) {
     dbQuery = dbQuery.where("type", "==", query.type);
   }
-  if (query.examinationBoardId) {
-    dbQuery = dbQuery.where("examinationBoardId", "==", query.examinationBoardId);
-  }
-  if (query.paperYear !== undefined) {
-    dbQuery = dbQuery.where("paperYear", "==", query.paperYear);
-  }
-  if (query.paperSession) {
-    dbQuery = dbQuery.where("paperSession", "==", query.paperSession);
-  }
-  if (query.paperType) {
-    dbQuery = dbQuery.where("paperType", "==", query.paperType);
-  }
-
   dbQuery = dbQuery.orderBy("displayOrder", "asc").orderBy("__name__", "asc").limit(query.limit);
 
   if (query.cursor) {
@@ -90,7 +77,21 @@ export async function listPublicResources(input: PublicResourceQuery): Promise<P
 
   const snapshot = await dbQuery.get();
   
-  const data = snapshot.docs.map(doc => toPublicDto({ ...doc.data(), id: doc.id } as Resource));
+  let data = snapshot.docs.map(doc => toPublicDto({ ...doc.data(), id: doc.id } as Resource));
+  
+  // Apply optional past paper criteria in-memory on candidate result set to avoid index explosion
+  if (query.examinationBoardId) {
+    data = data.filter(d => d.examinationBoardId === query.examinationBoardId);
+  }
+  if (query.paperYear !== undefined) {
+    data = data.filter(d => d.paperYear === query.paperYear);
+  }
+  if (query.paperSession) {
+    data = data.filter(d => d.paperSession === query.paperSession);
+  }
+  if (query.paperType) {
+    data = data.filter(d => d.paperType === query.paperType);
+  }
   
   let nextCursor: string | null = null;
   if (snapshot.docs.length === query.limit) {
