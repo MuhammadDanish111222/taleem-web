@@ -105,4 +105,47 @@ This document logs significant architectural decisions and changes made througho
   - **Future Optimization:** Apply the same server-side, shared cache pattern used for public catalogue pages in Phase 1D — Next.js `"use cache"` + `cacheTag` on the list query, invalidated via `revalidateTag()` from `resourceService.ts` (`publishResource`, `hideResource`, `archiveResource`, `addResourceVersion`) after transactions commit, tagged narrowly (e.g. per board+class+subject+type).
   - **Reason for Deferral:** There is no production traffic yet, the Firestore index-merging fix directly resolves main read costs, and a shared server-side cache (benefiting all users) is a far stronger lever than a per-browser client cache. Revisit once production Firebase console telemetry identifies this endpoint as a significant share of daily read volume.
 
+## Phase 2D: Launch Search with Explicit Limits
+- **Decision:** Dormant Title Edit Hook Pattern.
+- **Change Details:**
+  - `computeSearchFields(title: string, schemaVersion?: number)` is exported from `lib/search/normalize.ts` and invoked during resource creation (`createDraftResourceWithInitialVersion`).
+  - There is currently no title-edit mutation API in the codebase (title editing is Module 7 scope). Whoever builds the future title-edit endpoint must call `computeSearchFields` to update `searchTokens` and `searchPrefixes`.
+- **Decision:** Selective Primary Token Candidate Query & Deterministic Server-Side Ranking.
+- **Change Details:**
+  - Firestore does not support multiple `array-contains` clauses per query. Multiword input selects the longest normalized token for the primary `.where("searchPrefixes", "array-contains", primaryToken).orderBy("displayOrder", "asc").limit(50)` query.
+  - Verified candidates (passing in-memory AND verification across all tokens) are ranked deterministically:
+    1. Exact token match count (descending)
+    2. Prefix match count (descending)
+    3. `displayOrder` (ascending)
+    4. Document `id` (ascending)
+- **Decision:** Server-Side Context Narrowing (`subjectId` and `type`).
+- **Change Details:**
+  - Optional `subjectId` and `type` parameters are accepted by `searchPublicResources` and applied as server-side `.where()` clauses in Firestore *before* `.orderBy()` and `.limit()`.
+  - This prevents client-side post-slicing truncation where valid results for a specific type (e.g. `/books`) are dropped because out-of-context notes/past papers outranked them in an unscoped query.
+  - Four explicit composite indexes are declared in `firestore.indexes.json` covering `searchPrefixes` combined with `boardId`, `classId`, `status`, optional `subjectId`, optional `type`, and `displayOrder`, adhering to Firestore guidelines against relying on index-merging for `array-contains` queries.
+- **Decision:** Bounded Prefix Generation & 12-Character Prefix Cap Behavior.
+- **Change Details:**
+  - Single-character tokens (< 2 chars) are excluded from indexing.
+  - Prefixes are generated for token lengths 2 up to 12 characters, plus the full exact token if longer than 12 characters.
+  - **Quirk:** A partial query token between 13 characters and full length will not match stored prefixes until the user types the complete token (which matches the exact stored token).
+- **Decision:** Capped Candidate Window Best-Effort Sampling Behavior.
+- **Change Details:**
+  - Search results represent a best-effort sample of the top 50 candidates (by `displayOrder`) matching the primary token before AND verification.
+  - In narrow multiword queries, genuine matching resources whose primary token falls outside the top 50 `displayOrder` window will not be returned.
+- **Decision:** Deferred Request Rate Limiting (`DEFERRED`).
+- **Change Details:**
+  - Abuse rate-limiting is explicitly deferred to Module 8 (Security Hardening) as the application has no Redis/Postgres rate-limiter infrastructure today. Input query length limits (q: 2..100 chars, limit: 1..50) are strictly enforced via Zod.
+- **Decision:** Shared Schema Version Constant Placement.
+- **Change Details:**
+  - `CURRENT_SEARCH_SCHEMA_VERSION = 1` is exported from `lib/search/normalize.ts` and stored on `Resource.searchSchemaVersion`. The idempotent CLI script `scripts/backfill-resource-search.ts` compares against this constant to detect and migrate outdated documents.
+- **Decision:** Documented Engine Upgrade Triggers.
+- **Change Details:**
+  - The Firestore `array-contains` prefix design is optimized for launch scale (< 100,000 resources, Roman/English script titles).
+  - Migration triggers to a dedicated search engine (Typesense, Meilisearch, Algolia, or Postgres `tsvector`):
+    1. Corpus volume exceeds 50,000 resources or index storage limits impact costs.
+    2. Requirement for full-text fuzzy/typo-tolerant matching (e.g. Levenshtein distance).
+    3. Requirement for Urdu/Nasta'liq bilingual tokenization or stemming (Snowball/Hunspell).
+    4. Search requirement spanning non-title fields (descriptions, tags, OCR page content).
+
+
 

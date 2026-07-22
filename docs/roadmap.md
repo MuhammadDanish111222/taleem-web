@@ -11,6 +11,7 @@
   - [x] Phase 2A: Resource Schema and Storage Provider
   - [x] Phase 2B: Secure Upload, Validation, OAuth2 Personal/Workspace Drive Storage, and Publishing Workflow
   - [x] Phase 2C: Content Browsing, Published-Only Reader & Byte-Range PDF Proxy
+  - [x] Phase 2D: Launch Search with Explicit Limits
 - [ ] Phase 3: AI Service Integration
 - [ ] Phase 4: Student Dashboard & Progress Tracking
 - [ ] Phase 5: Admin Panel

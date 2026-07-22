@@ -44,6 +44,10 @@ export interface Resource {
   hiddenAt?: FirebaseTimestamp | null;
   archivedAt?: FirebaseTimestamp | null;
 
+  searchTokens?: string[];
+  searchPrefixes?: string[];
+  searchSchemaVersion?: number;
+
   schemaVersion: 1;
 }
 

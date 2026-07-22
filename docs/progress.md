@@ -109,3 +109,17 @@ This document serves as a persistent record of the progress made across differen
   - **Rules & Emulator Integration:** `npm run test:rules` passed 100% (91 tests across 5 files including `resourceService.test.ts` past-paper filtering, DTO verification, and pagination stability).
   - **Typecheck:** `npm run typecheck` passed cleanly with 0 TypeScript errors.
   - **Client Bundle Scan:** `npm run scan:bundle` passed with 0 provider leakage issues in client JS bundles.
+
+## Phase 2D: Launch Search with Explicit Limits
+- **Status:** Completed
+- **Details:**
+  - Built token normalization module (`lib/search/normalize.ts`) supporting lowercasing, NFKD Unicode diacritic stripping, punctuation removal, token length filtering ($\ge 2$), token capping (max 30 tokens/title), prefix generation (length 2..12 + exact full token), and schema version constant (`CURRENT_SEARCH_SCHEMA_VERSION = 1`).
+  - Built scoped search engine (`lib/search/resourceSearch.ts`) enforcing hierarchy validation (`boardId` + `classId` required, optional `subjectId` + `type`), zero-token query short-circuiting (`"!?"` $\to$ `{ data: [] }`), primary token selection (longest token), candidate fetching (`orderBy("displayOrder", "asc")`, limit 50), in-memory token AND verification, and deterministic ranking (exact match count $\to$ prefix match count $\to$ `displayOrder` $\to$ `id`).
+  - Built public search API endpoint (`app/api/content/search/route.ts`) returning Zod-validated `PublicResourceDto[]` payloads and error responses (`422`, `404`).
+  - Integrated debounced (300ms) search input into client component `ContentBrowser.tsx` passing active `type` and `subjectId` context server-side.
+  - Built idempotent CLI backfill script (`scripts/backfill-resource-search.ts` / `npm run search:backfill`) updating outdated/missing search fields in batched writes.
+  - Defined 4 explicit composite indexes in `firestore.indexes.json` covering search queries with `searchPrefixes` array-contains and `displayOrder` sorting.
+- **Verification Performed:**
+  - **Unit Tests:** `npm run test:unit` passed 100% (85 tests across 18 test files including `normalize.test.ts` and `resourceSearch.test.ts`).
+  - **Rules & Emulator Integration:** `npm run test:rules` passed 100% (55 tests across 7 files including `resourceSearch.emulator.test.ts` and `backfill.emulator.test.ts`).
+  - **Typecheck:** `npm run typecheck` passed cleanly with 0 TypeScript errors across 3 consecutive runs.

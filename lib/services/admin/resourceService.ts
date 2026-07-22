@@ -19,6 +19,7 @@ import {
   updateResourceTransactionally,
 } from "../../repositories/firestore/resourceRepository";
 import { writeAuditLogTransactionally } from "../../repositories/firestore/adminAuditLogRepository";
+import { computeSearchFields } from "../../search/normalize";
 
 export interface AdminActorContext {
   uid: string;
@@ -34,6 +35,8 @@ export async function createDraftResourceWithInitialVersion(
   const versionData = resourceVersionMetadataSchema.parse(versionInput);
 
   await validateCatalogueHierarchy(data.boardId, data.classId, data.subjectId, data.chapterId);
+
+  const searchFields = computeSearchFields(data.title);
 
   return runResourceTransaction(async (transaction) => {
     const resourceId = generateResourceId();
@@ -62,6 +65,9 @@ export async function createDraftResourceWithInitialVersion(
       publishedAt: null,
       hiddenAt: null,
       archivedAt: null,
+      searchTokens: searchFields.searchTokens,
+      searchPrefixes: searchFields.searchPrefixes,
+      searchSchemaVersion: searchFields.searchSchemaVersion,
       schemaVersion: 1,
     };
 
