@@ -4,6 +4,7 @@ import { z } from "zod";
 const slugSchema = z.string().min(1).max(100).regex(/^[a-z0-9-]+$/, "Slug must be lowercase alphanumeric and dashes only");
 
 const boardIdSchema = z.object({ boardId: slugSchema }).strict();
+const examinationBoardIdSchema = boardIdSchema.extend({ examinationBoardId: slugSchema }).strict();
 const classIdSchema = boardIdSchema.extend({ classId: slugSchema }).strict();
 const subjectIdSchema = classIdSchema.extend({ subjectId: slugSchema }).strict();
 const chapterIdSchema = subjectIdSchema.extend({ chapterId: slugSchema }).strict();
@@ -12,6 +13,13 @@ const chapterIdSchema = subjectIdSchema.extend({ chapterId: slugSchema }).strict
 const createBoardSchema = boardIdSchema.extend({
   operation: z.literal("create"),
   level: z.literal("board"),
+  name: z.string().min(1).max(100),
+}).strict();
+
+const createExaminationBoardSchema = boardIdSchema.extend({
+  operation: z.literal("create"),
+  level: z.literal("examinationBoard"),
+  examinationBoardId: slugSchema,
   name: z.string().min(1).max(100),
 }).strict();
 
@@ -32,13 +40,20 @@ const createChapterSchema = chapterIdSchema.extend({
   operation: z.literal("create"),
   level: z.literal("chapter"),
   title: z.string().min(1).max(150),
-  chapter_number: z.number().int().positive(),
+  chapter_number: z.number().int().positive().optional(),
+  parentNodeId: z.string().nullable().optional(),
 }).strict();
 
 // UPDATE (Slug is immutable identifier, only descriptive fields change)
 const updateBoardSchema = boardIdSchema.extend({
   operation: z.literal("update"),
   level: z.literal("board"),
+  name: z.string().min(1).max(100),
+}).strict();
+
+const updateExaminationBoardSchema = examinationBoardIdSchema.extend({
+  operation: z.literal("update"),
+  level: z.literal("examinationBoard"),
   name: z.string().min(1).max(100),
 }).strict();
 
@@ -59,13 +74,20 @@ const updateChapterSchema = chapterIdSchema.extend({
   operation: z.literal("update"),
   level: z.literal("chapter"),
   title: z.string().min(1).max(150),
-  chapter_number: z.number().int().positive(),
+  chapter_number: z.number().int().positive().optional(),
+  parentNodeId: z.string().nullable().optional(),
 }).strict();
 
 // TOGGLE
 const toggleBoardSchema = boardIdSchema.extend({
   operation: z.literal("toggle"),
   level: z.literal("board"),
+  active: z.boolean(),
+}).strict();
+
+const toggleExaminationBoardSchema = examinationBoardIdSchema.extend({
+  operation: z.literal("toggle"),
+  level: z.literal("examinationBoard"),
   active: z.boolean(),
 }).strict();
 
@@ -96,6 +118,12 @@ const reorderBoardSchema = z.object({
   orderedIds: orderedIdsSchema,
 }).strict();
 
+const reorderExaminationBoardSchema = boardIdSchema.extend({
+  operation: z.literal("reorder"),
+  level: z.literal("examinationBoard"),
+  orderedIds: orderedIdsSchema,
+}).strict();
+
 const reorderClassSchema = boardIdSchema.extend({
   operation: z.literal("reorder"),
   level: z.literal("class"),
@@ -118,21 +146,25 @@ const reorderChapterSchema = subjectIdSchema.extend({
 export const catalogueMutationSchema = z.union([
   // create
   createBoardSchema,
+  createExaminationBoardSchema,
   createClassSchema,
   createSubjectSchema,
   createChapterSchema,
   // update
   updateBoardSchema,
+  updateExaminationBoardSchema,
   updateClassSchema,
   updateSubjectSchema,
   updateChapterSchema,
   // toggle
   toggleBoardSchema,
+  toggleExaminationBoardSchema,
   toggleClassSchema,
   toggleSubjectSchema,
   toggleChapterSchema,
   // reorder
   reorderBoardSchema,
+  reorderExaminationBoardSchema,
   reorderClassSchema,
   reorderSubjectSchema,
   reorderChapterSchema,
@@ -142,24 +174,29 @@ export type CatalogueMutation = z.infer<typeof catalogueMutationSchema>;
 
 export type CreateMutation = 
   | z.infer<typeof createBoardSchema>
+  | z.infer<typeof createExaminationBoardSchema>
   | z.infer<typeof createClassSchema>
   | z.infer<typeof createSubjectSchema>
   | z.infer<typeof createChapterSchema>;
 
 export type UpdateMutation = 
   | z.infer<typeof updateBoardSchema>
+  | z.infer<typeof updateExaminationBoardSchema>
   | z.infer<typeof updateClassSchema>
   | z.infer<typeof updateSubjectSchema>
   | z.infer<typeof updateChapterSchema>;
 
 export type ToggleMutation = 
   | z.infer<typeof toggleBoardSchema>
+  | z.infer<typeof toggleExaminationBoardSchema>
   | z.infer<typeof toggleClassSchema>
   | z.infer<typeof toggleSubjectSchema>
   | z.infer<typeof toggleChapterSchema>;
 
 export type ReorderMutation = 
   | z.infer<typeof reorderBoardSchema>
+  | z.infer<typeof reorderExaminationBoardSchema>
   | z.infer<typeof reorderClassSchema>
   | z.infer<typeof reorderSubjectSchema>
   | z.infer<typeof reorderChapterSchema>;
+

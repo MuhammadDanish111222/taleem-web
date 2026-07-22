@@ -58,3 +58,25 @@ This document logs significant architectural decisions and changes made througho
   - Standard Service Accounts lack storage quotas on personal Google accounts (@gmail.com) and cannot own personal My Drive files without Workspace Shared Drives.
   - Implemented `GOOGLE_DRIVE_AUTH_MODE=oauth_user` using `google.auth.OAuth2` with `GOOGLE_DRIVE_REFRESH_TOKEN` alongside Workspace `shared_drive` and `delegated` modes.
   - Created automated CLI authorization tool `npm run drive:authorize` to handle one-time authorization and automatic creation of the target `"Taleem AI Content"` folder in personal My Drive.
+
+## Pre-Phase 2C: Catalogue Hierarchy & Paper Metadata Amendment
+- **Decision:** Unified Mutation API and Arbitrary Tree Hierarchy (`parentNodeId`).
+- **Change Details:**
+  - Extended existing `chapters` collection with `parentNodeId: string | null` rather than renaming to "content node", preserving Firestore collection stability and API backwards compatibility.
+  - Extended existing `catalogueService` and `catalogueRepository` with `validateNodeParentage` rather than creating a parallel mutation pipeline. All creation and reparenting enforces:
+    1. Parent node exists under exact same `boardId`/`classId`/`subjectId`.
+    2. Self-parenting (`nodeId === parentNodeId`) is forbidden.
+    3. Ancestor cycles (`A -> B -> C -> A`) are detected recursively and rejected.
+- **Decision:** Regional Examination Boards and Past Paper Metadata.
+- **Change Details:**
+  - Added new `boards/{boardId}/examinationBoards/{id}` catalogue collection, populated for Punjab multi-board regional entities (`lhr`, `rwp`, `guj`, `mtn`, etc.) and Federal (`fbise`). Managed via `catalogueService`.
+  - Added past paper metadata fields (`examinationBoardId`, `paperYear`, `paperSession`, `paperType`) on `Resource` and `PublicResourceDto`.
+  - Added explicit code warning regarding the conceptual overlap between `paperType` (e.g. "old", "new") and `curriculumVersion` so submitters use `curriculumVersion` for syllabus revisions.
+- **Decision:** Bounded 2-Read Notes Tree & 1-Read Past Papers Queries.
+- **Change Details:**
+  - `getSubjectNotesTree` performs exactly 2 Firestore queries (1 for content nodes, 1 for published resources) regardless of depth or size, executing in-memory parent-child mapping and bottom-up `hasContentInSubtree` pruning.
+  - `getSubjectPastPapersGrouped` performs exactly 1 Firestore query and groups in-memory by `examinationBoardId -> paperYear -> paperSession/paperType`.
+- **Decision:** Deferring Admin Tree Management UI to Module 7.
+- **Change Details:**
+  - The backend admin catalogue mutation API (`/api/admin/catalogue`, `catalogueService`) is fully operational. Front-end admin UI screens for content node management and examination board management are explicitly deferred to Module 7 (Admin Completeness & Operations).
+

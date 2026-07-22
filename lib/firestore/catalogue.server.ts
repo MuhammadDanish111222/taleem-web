@@ -78,7 +78,7 @@ export async function getSubjectServer(boardId: string, classId: string, subject
 
 export async function getChaptersServer(boardId: string, classId: string, subjectId: string): Promise<Chapter[]> {
   "use cache";
-  cacheTag("catalogue");
+  cacheTag("catalogue", `catalogue:${boardId}:${classId}:${subjectId}`);
   cacheLife({
     stale: 300,
     revalidate: 300,
@@ -99,6 +99,32 @@ export async function getChaptersServer(boardId: string, classId: string, subjec
       chapter_number: data.chapter_number,
       active: data.active,
       display_order: data.display_order,
+      parentNodeId: (data as any).parentNodeId ?? null,
     };
   });
 }
+
+export async function getSubjectNotesTreeServer(boardId: string, classId: string, subjectId: string) {
+  "use cache";
+  cacheTag("catalogue", `catalogue:${boardId}:${classId}:${subjectId}`, `resources:${boardId}:${classId}:${subjectId}`);
+  cacheLife({
+    stale: 300,
+    revalidate: 300,
+    expire: 3600,
+  });
+  const { getSubjectNotesTree } = await import("../services/catalogue/catalogueTreeService");
+  return getSubjectNotesTree(boardId, classId, subjectId, "published");
+}
+
+export async function getSubjectPastPapersGroupedServer(boardId: string, classId: string, subjectId: string) {
+  "use cache";
+  cacheTag(`resources:${boardId}:${classId}:${subjectId}`);
+  cacheLife({
+    stale: 300,
+    revalidate: 300,
+    expire: 3600,
+  });
+  const { getSubjectPastPapersGrouped } = await import("../services/catalogue/catalogueTreeService");
+  return getSubjectPastPapersGrouped(boardId, classId, subjectId);
+}
+

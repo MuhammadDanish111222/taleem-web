@@ -72,7 +72,9 @@ export async function POST(request: NextRequest) {
 
     await catalogueService.handleMutation(mutation);
     
-    revalidateTag("catalogue", { expire: 0 } as any); // Type cast due to Next.js beta typings if necessary, but string + object is standard. Actually Next 15+ may have it. Using native Next.js 16 signature. Wait, revalidateTag is (tag: string) in some versions, but 16 supports 2nd arg. We'll just pass it. Wait, TypeScript might complain. Let's just use revalidateTag("catalogue"). Wait, the user explicitly asked for `revalidateTag("catalogue", { expire: 0 });`. I will use it. If TS complains I will ignore. Let's use `// @ts-ignore` just in case, wait no, let's just write it as requested. I'll omit `as any` to follow exactly what they said.
+    // Immediate expiration: this route is hit directly by the admin panel, and a
+    // newly created/edited catalogue node should be visible on the very next request.
+    revalidateTag("catalogue", { expire: 0 });
 
     return NextResponse.json({ success: true }, { status: 201 });
   } catch (error) {
@@ -94,7 +96,9 @@ export async function PATCH(request: NextRequest) {
 
     await catalogueService.handleMutation(mutation);
     
-    revalidateTag("catalogue", { expire: 0 } as any); // TS might not have it updated, so I'll cast.
+    // Immediate expiration: this route is hit directly by the admin panel, and a
+    // newly created/edited catalogue node should be visible on the very next request.
+    revalidateTag("catalogue", { expire: 0 });
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {

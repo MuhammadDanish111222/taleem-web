@@ -21,10 +21,12 @@ export class CatalogueService {
   private async assertParentExists(mutation: CatalogueMutation) {
     if (mutation.level === "board") return;
     
-    // For Class, Subject, Chapter, the Board must exist
+    // For Class, Subject, Chapter, ExaminationBoard, the Board must exist
     const boardRef = this.repo.getBoardRef(mutation.boardId);
     const boardDoc = await boardRef.get();
     if (!boardDoc.exists) throw new DomainError("NOT_FOUND", `Parent board ${mutation.boardId} not found`);
+
+    if (mutation.level === "examinationBoard") return;
 
     // For Subject, Chapter, the Class must exist
     if (mutation.level === "subject" || mutation.level === "chapter") {
@@ -57,11 +59,26 @@ export class CatalogueService {
 
     const collectionRef = this.repo.getCollectionRefForLevel(mutation);
     const targetSlug = mutation.level === "board" ? mutation.boardId :
+                       mutation.level === "examinationBoard" ? mutation.examinationBoardId :
                        mutation.level === "class" ? mutation.classId :
                        mutation.level === "subject" ? mutation.subjectId :
                        mutation.chapterId;
                        
     const docRef = collectionRef.doc(targetSlug);
+
+    if (mutation.level === "chapter" && mutation.parentNodeId) {
+      try {
+        await this.repo.validateNodeParentage(
+          mutation.boardId,
+          mutation.classId,
+          mutation.subjectId,
+          targetSlug,
+          mutation.parentNodeId
+        );
+      } catch (err) {
+        throw new DomainError("VALIDATION", err instanceof Error ? err.message : "Invalid node parentage");
+      }
+    }
 
     return this.repo.runTransaction(async (transaction) => {
       // 1. Check for duplicate slug atomically
@@ -82,7 +99,7 @@ export class CatalogueService {
         updated_at: FieldValue.serverTimestamp(),
       };
 
-      if (mutation.level === "board" || mutation.level === "class" || mutation.level === "subject") {
+      if (mutation.level === "board" || mutation.level === "examinationBoard" || mutation.level === "class" || mutation.level === "subject") {
         payload.name = mutation.name;
       }
       if (mutation.level === "subject" && mutation.icon) {
@@ -90,7 +107,8 @@ export class CatalogueService {
       }
       if (mutation.level === "chapter") {
         payload.title = mutation.title;
-        payload.chapter_number = mutation.chapter_number;
+        payload.chapter_number = mutation.chapter_number ?? null;
+        payload.parentNodeId = mutation.parentNodeId ?? null;
       }
 
       // 4. Create document
@@ -99,6 +117,20 @@ export class CatalogueService {
   }
 
   private async update(mutation: UpdateMutation) {
+    if (mutation.level === "chapter" && mutation.parentNodeId !== undefined && mutation.parentNodeId !== null) {
+      try {
+        await this.repo.validateNodeParentage(
+          mutation.boardId,
+          mutation.classId,
+          mutation.subjectId,
+          mutation.chapterId,
+          mutation.parentNodeId
+        );
+      } catch (err) {
+        throw new DomainError("VALIDATION", err instanceof Error ? err.message : "Invalid node parentage");
+      }
+    }
+
     const docRef = this.repo.getDocRef(mutation);
     
     return this.repo.runTransaction(async (transaction) => {
@@ -111,7 +143,7 @@ export class CatalogueService {
         updated_at: FieldValue.serverTimestamp(),
       };
 
-      if (mutation.level === "board" || mutation.level === "class" || mutation.level === "subject") {
+      if (mutation.level === "board" || mutation.level === "examinationBoard" || mutation.level === "class" || mutation.level === "subject") {
         payload.name = mutation.name;
       }
       if (mutation.level === "subject") {
@@ -119,12 +151,14 @@ export class CatalogueService {
       }
       if (mutation.level === "chapter") {
         payload.title = mutation.title;
-        payload.chapter_number = mutation.chapter_number;
+        if (mutation.chapter_number !== undefined) payload.chapter_number = mutation.chapter_number ?? null;
+        if (mutation.parentNodeId !== undefined) payload.parentNodeId = mutation.parentNodeId ?? null;
       }
 
       transaction.update(docRef, payload);
     });
   }
+
 
   private async toggle(mutation: ToggleMutation) {
     const docRef = this.repo.getDocRef(mutation);

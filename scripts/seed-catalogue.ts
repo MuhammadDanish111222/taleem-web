@@ -4,6 +4,7 @@ loadEnvConfig(process.cwd());
 async function seed() {
   try {
     const { getAdminFirestore } = await import('../lib/firebase/admin');
+    const { catalogueService, DomainError } = await import('../lib/services/admin/catalogueService');
     const db = getAdminFirestore();
     
     console.log("Seeding site settings...");
@@ -20,8 +21,32 @@ async function seed() {
     }, { merge: true });
 
     const boards = [
-      { name: "Punjab Board", slug: "punjab", active: true, display_order: 1 },
-      { name: "Federal Board", slug: "federal", active: true, display_order: 2 }
+      { 
+        name: "Punjab Board", 
+        slug: "punjab", 
+        active: true, 
+        display_order: 1,
+        examinationBoards: [
+          { name: "BISE Lahore", slug: "lhr" },
+          { name: "BISE Rawalpindi", slug: "rwp" },
+          { name: "BISE Gujranwala", slug: "guj" },
+          { name: "BISE Multan", slug: "mtn" },
+          { name: "BISE Faisalabad", slug: "fsd" },
+          { name: "BISE Sahiwal", slug: "swl" },
+          { name: "BISE Bahawalpur", slug: "bwp" },
+          { name: "BISE D.G. Khan", slug: "dgk" },
+          { name: "BISE Sargodha", slug: "sgd" }
+        ]
+      },
+      { 
+        name: "Federal Board", 
+        slug: "federal", 
+        active: true, 
+        display_order: 2,
+        examinationBoards: [
+          { name: "FBISE Islamabad", slug: "fbise" }
+        ]
+      }
     ];
 
     const classes9_10_subjects = [
@@ -53,43 +78,77 @@ async function seed() {
       { name: "Class 12", slug: "12", active: true, display_order: 4, subjects: classes11_12_subjects }
     ];
 
+    async function upsertCatalogueItem(mutation: any) {
+      try {
+        await catalogueService.handleMutation(mutation);
+      } catch (err) {
+        if (err instanceof DomainError && err.code === "CONFLICT") {
+          // If already exists, update
+          const updateMutation = { ...mutation, operation: "update" as const };
+          delete updateMutation.examinationBoardId;
+          delete updateMutation.chapterId;
+          await catalogueService.handleMutation(updateMutation);
+        } else {
+          throw err;
+        }
+      }
+    }
+
     for (const board of boards) {
       console.log(`Seeding board: ${board.name}`);
-      await db.doc(`boards/${board.slug}`).set({
+      await upsertCatalogueItem({
+        operation: "create",
+        level: "board",
+        boardId: board.slug,
         name: board.name,
-        slug: board.slug,
-        active: board.active,
-        display_order: board.display_order
-      }, { merge: true });
+      });
+
+      console.log(`  Seeding examination boards under ${board.name}`);
+      for (const eb of board.examinationBoards) {
+        await upsertCatalogueItem({
+          operation: "create",
+          level: "examinationBoard",
+          boardId: board.slug,
+          examinationBoardId: eb.slug,
+          name: eb.name,
+        });
+      }
 
       for (const cls of classesData) {
         console.log(`  Seeding class: ${cls.name} under ${board.name}`);
-        await db.doc(`boards/${board.slug}/classes/${cls.slug}`).set({
+        await upsertCatalogueItem({
+          operation: "create",
+          level: "class",
+          boardId: board.slug,
+          classId: cls.slug,
           name: cls.name,
-          slug: cls.slug,
-          active: cls.active,
-          display_order: cls.display_order
-        }, { merge: true });
+        });
 
         for (let sIdx = 0; sIdx < cls.subjects.length; sIdx++) {
           const subject = cls.subjects[sIdx];
           console.log(`    Seeding subject: ${subject.name} under ${cls.name}`);
-          await db.doc(`boards/${board.slug}/classes/${cls.slug}/subjects/${subject.slug}`).set({
+          await upsertCatalogueItem({
+            operation: "create",
+            level: "subject",
+            boardId: board.slug,
+            classId: cls.slug,
+            subjectId: subject.slug,
             name: subject.name,
-            slug: subject.slug,
-            active: true,
-            display_order: sIdx + 1
-          }, { merge: true });
+          });
 
           for (let cIdx = 0; cIdx < sampleChapters.length; cIdx++) {
             const chapter = sampleChapters[cIdx];
-            await db.doc(`boards/${board.slug}/classes/${cls.slug}/subjects/${subject.slug}/chapters/${chapter.slug}`).set({
+            await upsertCatalogueItem({
+              operation: "create",
+              level: "chapter",
+              boardId: board.slug,
+              classId: cls.slug,
+              subjectId: subject.slug,
+              chapterId: chapter.slug,
               title: chapter.title,
-              slug: chapter.slug,
               chapter_number: cIdx + 1,
-              active: true,
-              display_order: cIdx + 1
-            }, { merge: true });
+              parentNodeId: null,
+            });
           }
         }
       }

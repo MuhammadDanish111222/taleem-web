@@ -29,3 +29,6 @@
 ## Updated: Module 2 - Phase 2A Resource Schema and Storage Provider
 - Added resource versioning in Firestore.
 - Configured Google Drive Storage Provider.
+
+## Module 7 (Admin Completeness & Operations)
+- Admin UI for catalogue content-node management (create/rename/reparent/deactivate nodes, manage examination boards) — backend mutation API (`catalogueService`, `validateNodeParentage`) is fully implemented; seed script and API route are the interim management mechanisms.

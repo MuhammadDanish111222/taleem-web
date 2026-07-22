@@ -18,6 +18,15 @@ export interface Resource {
   subjectId: string;
   chapterId: string | null;
 
+  examinationBoardId?: string | null;
+  paperYear?: number | null;
+  paperSession?: string | null; // e.g. "annual", "supplementary"
+  // IMPORTANT NOTE: paperType (e.g. "old", "new") may overlap conceptually with curriculumVersion.
+  // Do not silently assume which one is correct — if the person uploading believes "old/new" means
+  // "old syllabus vs new syllabus," they should use curriculumVersion instead and leave paperType null.
+  // Do not delete or rework curriculumVersion; document this ambiguity clearly so it gets resolved at data-entry time.
+  paperType?: string | null;
+
   status: ResourceStatus;
   currentVersionId: string;
 
@@ -69,8 +78,13 @@ export interface PublicResourceDto {
   classId: string;
   subjectId: string;
   chapterId: string | null;
+  examinationBoardId?: string | null;
+  paperYear?: number | null;
+  paperSession?: string | null;
+  paperType?: string | null;
   language: string;
   curriculumVersion: string;
   displayOrder: number;
   publishedAt: string | null;
 }
+
