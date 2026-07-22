@@ -156,7 +156,7 @@ export class UploadService {
     let storageMetadata;
     const fileStream = fs.createReadStream(tempFile.filepath);
     fileStream.on("error", (err) => {
-      // Prevent unhandled stream error events from unlinked temp files
+      console.error("UploadService tempFile readStream error:", err);
     });
 
     try {
