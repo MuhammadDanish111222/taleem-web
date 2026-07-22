@@ -2,7 +2,7 @@ import { assertFails, assertSucceeds, initializeTestEnvironment, RulesTestEnviro
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { describe, it, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
-import { setDoc, doc, getDoc } from 'firebase/firestore';
+import { setDoc, doc, getDoc, collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 
 let testEnv: RulesTestEnvironment;
 
@@ -116,5 +116,44 @@ describe('Firestore Security Rules', () => {
     const db = getUnauthedDb();
     await assertSucceeds(getDoc(doc(db, 'boards/board1/classes/c1/subjects/s1/chapters/ch1')));
   });
+
+  it('allows past_paper collection query matching getSubjectPastPapersGrouped field combination and validates active hierarchy', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      await setDoc(doc(db, 'boards/board1'), { active: true });
+      await setDoc(doc(db, 'boards/board1/classes/c1'), { active: true });
+      await setDoc(doc(db, 'boards/board1/classes/c1/subjects/s1'), { active: true });
+      await setDoc(doc(db, 'resources/pp1'), {
+        status: 'published',
+        boardId: 'board1',
+        classId: 'c1',
+        subjectId: 's1',
+        type: 'past_paper',
+        displayOrder: 1,
+        title: 'Past Paper 1',
+      });
+    });
+
+    const db = getUnauthedDb();
+    const q = query(
+      collection(db, 'resources'),
+      where('status', '==', 'published'),
+      where('boardId', '==', 'board1'),
+      where('classId', '==', 'c1'),
+      where('subjectId', '==', 's1'),
+      where('type', '==', 'past_paper'),
+      orderBy('displayOrder', 'asc')
+    );
+
+    await assertSucceeds(getDocs(q));
+
+    // Assert unauthenticated client cannot read resource if parent board becomes inactive
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'boards/board1'), { active: false });
+    });
+
+    await assertFails(getDoc(doc(db, 'resources/pp1')));
+  });
 });
+
 

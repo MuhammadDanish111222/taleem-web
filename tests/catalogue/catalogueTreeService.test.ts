@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { getSubjectNotesTree, getSubjectPastPapersGrouped } from "@/lib/services/catalogue/catalogueTreeService";
 import * as adminFirebase from "@/lib/firebase/admin";
 
-describe("CatalogueTreeService & Bounded Query Reads", () => {
+describe("CatalogueTreeService & Bounded Query Calls", () => {
   let mockGetFirestore: any;
 
   beforeEach(() => {
@@ -231,15 +231,18 @@ describe("CatalogueTreeService & Bounded Query Reads", () => {
   });
 
   it("should prevent cross-board and cross-class leakage when subject IDs are identical (e.g. 'physics')", async () => {
-    // Both Punjab Class 9 Physics and Federal Class 10 Physics share the slug 'physics'
+    // Note: The test must be able to fail if the boardId/classId/subjectId .where() filters were removed from the service.
+    // To prove this, the mock get() for "resources" returns the combined dataset on EVERY call (simulating a real Firestore collection).
+    // The filtering must occur via the Firestore query .where() constraints captured during query chaining.
+
     const punjabChapters = [
-      { id: "punjab-phys-ch1", data: () => ({ title: "Punjab Phys Ch1", slug: "punjab-phys-ch1", display_order: 1, active: true, parentNodeId: null }) }
+      { id: "ch1", data: () => ({ title: "Punjab Phys Ch1", slug: "ch1", display_order: 1, active: true, parentNodeId: null }) }
     ];
     const federalChapters = [
-      { id: "federal-phys-ch1", data: () => ({ title: "Federal Phys Ch1", slug: "federal-phys-ch1", display_order: 1, active: true, parentNodeId: null }) }
+      { id: "ch1", data: () => ({ title: "Federal Phys Ch1", slug: "ch1", display_order: 1, active: true, parentNodeId: null }) }
     ];
 
-    const punjabResources = [
+    const allResourcesDocs = [
       {
         id: "res-punjab",
         data: () => ({
@@ -248,7 +251,22 @@ describe("CatalogueTreeService & Bounded Query Reads", () => {
           boardId: "punjab",
           classId: "9",
           subjectId: "physics",
-          chapterId: "punjab-phys-ch1",
+          chapterId: "ch1",
+          status: "published",
+          language: "en",
+          curriculumVersion: "2024",
+          displayOrder: 1,
+        })
+      },
+      {
+        id: "res-federal",
+        data: () => ({
+          type: "note",
+          title: "Federal Physics Note",
+          boardId: "federal",
+          classId: "10",
+          subjectId: "physics",
+          chapterId: "ch1",
           status: "published",
           language: "en",
           curriculumVersion: "2024",
@@ -259,9 +277,6 @@ describe("CatalogueTreeService & Bounded Query Reads", () => {
 
     const mockDb = {
       collection: (path: string) => {
-        let currentBoardId = "";
-        let currentClassId = "";
-        let currentSubjectId = "";
         const whereClauses: [string, string, any][] = [];
 
         return {
@@ -280,12 +295,14 @@ describe("CatalogueTreeService & Bounded Query Reads", () => {
               return { docs: federalChapters };
             }
             if (path === "resources") {
-              const matchesBoard = whereClauses.find(([f, o, v]) => f === "boardId" && v === "punjab");
-              const matchesClass = whereClauses.find(([f, o, v]) => f === "classId" && v === "9");
-              if (matchesBoard && matchesClass) {
-                return { docs: punjabResources };
+              // Apply the .where() filters accumulated on the query chain (simulating Firestore database engine)
+              let filtered = allResourcesDocs;
+              for (const [field, op, val] of whereClauses) {
+                if (op === "==") {
+                  filtered = filtered.filter(doc => doc.data()[field as keyof ReturnType<typeof doc.data>] === val);
+                }
               }
-              return { docs: [] };
+              return { docs: filtered };
             }
             return { docs: [] };
           }
@@ -295,15 +312,26 @@ describe("CatalogueTreeService & Bounded Query Reads", () => {
 
     vi.spyOn(adminFirebase, "getAdminFirestore").mockReturnValue(mockDb as any);
 
-    // Fetch Punjab Class 9 Physics
+    // 1. Fetch Punjab Class 9 Physics
     const punjabTree = await getSubjectNotesTree("punjab", "9", "physics", "published");
     expect(punjabTree.length).toBe(1);
-    expect(punjabTree[0].id).toBe("punjab-phys-ch1");
+    expect(punjabTree[0].id).toBe("ch1");
+    expect(punjabTree[0].title).toBe("Punjab Phys Ch1");
+    expect(punjabTree[0].resources.length).toBe(1);
     expect(punjabTree[0].resources[0].title).toBe("Punjab Physics Note");
 
-    // Fetch Federal Class 10 Physics -> should NOT return Punjab chapters or resources
+    // 2. Fetch Federal Class 10 Physics -> must NOT contain Punjab chapters or resources
     const federalTree = await getSubjectNotesTree("federal", "10", "physics", "published");
-    expect(federalTree.length).toBe(0); // No resources in mock for Federal, so pruned
+    expect(federalTree.length).toBe(1);
+    expect(federalTree[0].id).toBe("ch1");
+    expect(federalTree[0].title).toBe("Federal Phys Ch1");
+    expect(federalTree[0].resources.length).toBe(1);
+    expect(federalTree[0].resources[0].title).toBe("Federal Physics Note");
+
+    // Assert that no Punjab resource titles appear anywhere in the Federal result
+    const federalSerialized = JSON.stringify(federalTree);
+    expect(federalSerialized).not.toContain("Punjab Physics Note");
   });
 });
+
 
