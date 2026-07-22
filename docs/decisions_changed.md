@@ -94,9 +94,15 @@ This document logs significant architectural decisions and changes made througho
 - **Change Details:**
   - Path-scoped security headers for `/content/*` enforce `X-Content-Type-Options: nosniff` and `Content-Security-Policy: default-src 'self'; script-src 'self'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; frame-src 'self'; object-src 'none';`.
   - Self-hosted PDF.js web worker bundle (`public/pdf.worker.min.mjs`) is used directly without external CDN dependencies.
-- **Decision:** Bounded Candidate Scanning for In-Memory Past-Paper Filters (`MAX_CANDIDATE_BATCHES_PER_REQUEST = 5`).
+- **Decision:** Server-Side Past-Paper Filtering via Firestore Index Merging.
 - **Change Details:**
-  - `listPublicResources` uses a bounded loop scanning up to 5 raw candidate batches per request when past paper filters are active.
-  - This prevents Firestore index explosion while enforcing explicit bounded limits on read costs and latency per request (consistent with the explicit bounded limits search design philosophy). Cursor continuation (`nextCursor`) tracks the raw scan position to ensure seamless pagination across calls without duplicate or skipped records.
+  - `listPublicResources` filters past paper criteria (`examinationBoardId`, `paperYear`, `paperSession`, `paperType`) directly inside the Firestore query as `.where()` clauses using [Firestore's index merging feature](https://firebase.google.com/docs/firestore/query-data/index-overview).
+  - This supersedes the earlier in-memory bounded candidate loop (`MAX_CANDIDATE_BATCHES_PER_REQUEST`), maximizing read-cost efficiency on Firestore's free tier by avoiding unnecessary candidate reads.
+  - Four narrow single-field + sort composite indexes (`examinationBoardId`, `paperYear`, `paperSession`, `paperType` paired with `displayOrder`) allow Firestore to dynamically merge indexes at query time for any filter combination without requiring a multi-field composite index per combination.
+- **Decision:** Deferred Server-Side Caching for Content List Endpoint (`DEFERRED`).
+- **Change Details:**
+  - The content list endpoint (`/api/content`, `listPublicResources`) currently executes a live Firestore read per request.
+  - **Future Optimization:** Apply the same server-side, shared cache pattern used for public catalogue pages in Phase 1D — Next.js `"use cache"` + `cacheTag` on the list query, invalidated via `revalidateTag()` from `resourceService.ts` (`publishResource`, `hideResource`, `archiveResource`, `addResourceVersion`) after transactions commit, tagged narrowly (e.g. per board+class+subject+type).
+  - **Reason for Deferral:** There is no production traffic yet, the Firestore index-merging fix directly resolves main read costs, and a shared server-side cache (benefiting all users) is a far stronger lever than a per-browser client cache. Revisit once production Firebase console telemetry identifies this endpoint as a significant share of daily read volume.
 
 

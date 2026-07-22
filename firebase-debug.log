@@ -1,0 +1,28 @@
+[debug] [2026-07-22T18:50:08.554Z] ----------------------------------------------------------------------
+[debug] [2026-07-22T18:50:08.567Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\danis\AppData\Local\npm-cache\_npx\7750544ccf494d8b\node_modules\firebase-tools\lib\bin\firebase.js emulators:exec --only firestore vitest run --no-file-parallelism tests/firestore tests/resources tests/firestore.rules.test.ts scripts/manual-test-phase2a.test.ts scripts/manual-test-phase2b.test.ts
+[debug] [2026-07-22T18:50:08.569Z] CLI Version:   15.24.0
+[debug] [2026-07-22T18:50:08.569Z] Platform:      win32
+[debug] [2026-07-22T18:50:08.569Z] Node Version:  v24.16.0
+[debug] [2026-07-22T18:50:08.570Z] Detected Agent: antigravity
+[debug] [2026-07-22T18:50:08.570Z] Time:          Wed Jul 22 2026 23:50:08 GMT+0500 (Pakistan Standard Time)
+[debug] [2026-07-22T18:50:08.570Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-07-22T18:50:21.582Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-07-22T18:50:21.584Z] > authorizing via signed-in user (apptest111222@gmail.com)
+[debug] [2026-07-22T18:50:22.475Z] openjdk version "21.0.11" 2026-04-21 LTS
+OpenJDK Runtime Environment Temurin-21.0.11+10 (build 21.0.11+10-LTS)
+
+[debug] [2026-07-22T18:50:22.478Z] OpenJDK 64-Bit Server VM Temurin-21.0.11+10 (build 21.0.11+10-LTS, mixed mode, sharing)
+
+[debug] [2026-07-22T18:50:22.711Z] Parsed Java major version: 21
+[info] i  emulators: Starting emulators: firestore {"metadata":{"emulator":{"name":"hub"},"message":"Starting emulators: firestore"}}
+[info] i  emulators: Detected demo project ID "demo-no-project", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail. {"metadata":{"emulator":{"name":"hub"},"message":"Detected demo project ID \"demo-no-project\", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail."}}
+[debug] [2026-07-22T18:50:22.752Z] [logging] Logging Emulator only supports listening on one address (127.0.0.1). Not listening on ::1
+[debug] [2026-07-22T18:50:22.752Z] [firestore] Firestore Emulator only supports listening on one address (127.0.0.1). Not listening on ::1
+[debug] [2026-07-22T18:50:22.752Z] [firestore.websocket] websocket server for firestore only supports listening on one address (127.0.0.1). Not listening on ::1
+[debug] [2026-07-22T18:50:22.753Z] assigned listening specs for emulators {"user":{"hub":[{"address":"127.0.0.1","family":"IPv4","port":4400},{"address":"::1","family":"IPv6","port":4400}],"logging":[{"address":"127.0.0.1","family":"IPv4","port":4500}],"firestore":[{"address":"127.0.0.1","family":"IPv4","port":8080}],"firestore.websocket":[{"address":"127.0.0.1","family":"IPv4","port":9150}]},"metadata":{"message":"assigned listening specs for emulators"}}
+[debug] [2026-07-22T18:50:22.771Z] Write emulator hub locator at C:\Users\danis\AppData\Local\Temp\hub-demo-no-project.json
+[debug] [2026-07-22T18:50:22.816Z] Ignoring unsupported arg: auto_download {"metadata":{"emulator":{"name":"firestore"},"message":"Ignoring unsupported arg: auto_download"}}
+[debug] [2026-07-22T18:50:22.816Z] Ignoring unsupported arg: single_project_mode_error {"metadata":{"emulator":{"name":"firestore"},"message":"Ignoring unsupported arg: single_project_mode_error"}}
+[debug] [2026-07-22T18:50:22.817Z] Starting Firestore Emulator with command {"binary":"java","args":["-Dgoogle.cloud_firestore.debug_log_level=FINE","-Duser.language=en","-jar","C:\\Users\\danis\\.cache\\firebase\\emulators\\cloud-firestore-emulator-v1.21.0.jar","--host","127.0.0.1","--port",8080,"--websocket_port",9150,"--database-edition","standard","--project_id","demo-no-project","--rules","D:\\AI Learning\\BEST WISHES\\Taleem AI\\taleem_ai\\taleem-web\\firestore.rules","--single_project_mode",true],"optionalArgs":["port","webchannel_port","host","rules","websocket_port","database-edition","functions_emulator","seed_from_export","project_id","single_project_mode"],"joinArgs":false,"shell":false,"port":8080} {"metadata":{"emulator":{"name":"firestore"},"message":"Starting Firestore Emulator with command {\"binary\":\"java\",\"args\":[\"-Dgoogle.cloud_firestore.debug_log_level=FINE\",\"-Duser.language=en\",\"-jar\",\"C:\\\\Users\\\\danis\\\\.cache\\\\firebase\\\\emulators\\\\cloud-firestore-emulator-v1.21.0.jar\",\"--host\",\"127.0.0.1\",\"--port\",8080,\"--websocket_port\",9150,\"--database-edition\",\"standard\",\"--project_id\",\"demo-no-project\",\"--rules\",\"D:\\\\AI Learning\\\\BEST WISHES\\\\Taleem AI\\\\taleem_ai\\\\taleem-web\\\\firestore.rules\",\"--single_project_mode\",true],\"optionalArgs\":[\"port\",\"webchannel_port\",\"host\",\"rules\",\"websocket_port\",\"database-edition\",\"functions_emulator\",\"seed_from_export\",\"project_id\",\"single_project_mode\"],\"joinArgs\":false,\"shell\":false,\"port\":8080}"}}
+[info] i  firestore: Firestore Emulator logging to firestore-debug.log {"metadata":{"emulator":{"name":"firestore"},"message":"Firestore Emulator logging to \u001b[1mfirestore-debug.log\u001b[22m"}}

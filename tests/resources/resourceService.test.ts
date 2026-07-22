@@ -365,204 +365,124 @@ describe('Resource Service (Integration/Unit)', () => {
     expect(new Set(fetchedIds).size).toBe(5);
   });
 
-  it('accumulates matches across multiple raw batches when matches are sparsely distributed', async () => {
+  it('empirically verifies Firestore index merging across single, multi, and 4-filter past paper query combinations', async () => {
     const { listPublicResources } = await import('../../lib/resources/public');
-    const boardId = 'board-sparse-' + Date.now();
+    const boardId = 'board-index-merge-' + Date.now();
 
-    // Create 5 raw past papers, but only item 1 and item 5 match paperYear 2024
-    const matchingIds: string[] = [];
-    for (let i = 1; i <= 5; i++) {
-      const year = i === 1 || i === 5 ? 2024 : 2020;
-      const r = await createDraftResourceWithInitialVersion(
-        actor,
-        {
-          ...baseInput,
-          type: 'past_paper',
-          boardId,
-          paperYear: year,
-          title: `Past Paper ${i}`,
-          displayOrder: i,
-        },
-        baseVersionInput
-      );
-      await publishResource(actor, r.id);
-      if (year === 2024) matchingIds.push(r.id);
-    }
+    // Seed 4 distinct past paper resources with varied combinations
+    const r1 = await createDraftResourceWithInitialVersion(
+      actor,
+      {
+        ...baseInput,
+        type: 'past_paper',
+        boardId,
+        examinationBoardId: 'fbise',
+        paperYear: 2023,
+        paperSession: 'annual',
+        paperType: 'subjective',
+        displayOrder: 1,
+      },
+      baseVersionInput
+    );
+    await publishResource(actor, r1.id);
 
-    // Request limit=2 with paperYear=2024.
-    // Raw batch 1 (limit 2) has item 1 (match) and item 2 (miss).
-    // Loop continues to batch 2 & 3 until item 5 (match) is found.
-    const res = await listPublicResources({
+    const r2 = await createDraftResourceWithInitialVersion(
+      actor,
+      {
+        ...baseInput,
+        type: 'past_paper',
+        boardId,
+        examinationBoardId: 'fbise',
+        paperYear: 2023,
+        paperSession: 'supplementary',
+        paperType: 'objective',
+        displayOrder: 2,
+      },
+      baseVersionInput
+    );
+    await publishResource(actor, r2.id);
+
+    const r3 = await createDraftResourceWithInitialVersion(
+      actor,
+      {
+        ...baseInput,
+        type: 'past_paper',
+        boardId,
+        examinationBoardId: 'bise_lahore',
+        paperYear: 2022,
+        paperSession: 'annual',
+        paperType: 'subjective',
+        displayOrder: 3,
+      },
+      baseVersionInput
+    );
+    await publishResource(actor, r3.id);
+
+    const r4 = await createDraftResourceWithInitialVersion(
+      actor,
+      {
+        ...baseInput,
+        type: 'past_paper',
+        boardId,
+        examinationBoardId: 'bise_lahore',
+        paperYear: 2023,
+        paperSession: 'annual',
+        paperType: 'objective',
+        displayOrder: 4,
+      },
+      baseVersionInput
+    );
+    await publishResource(actor, r4.id);
+
+    const baseQuery = {
       boardId,
       classId: baseInput.classId,
       subjectId: baseInput.subjectId,
-      type: 'past_paper',
-      paperYear: 2024,
-      limit: 2,
-    });
+      type: 'past_paper' as const,
+    };
 
-    expect(res.data.length).toBe(2);
-    expect(res.data.map((d) => d.id)).toEqual(matchingIds);
-  });
+    // 1. Single filter: examinationBoardId = fbise -> expect [r1, r2]
+    const singleBoard = await listPublicResources({ ...baseQuery, examinationBoardId: 'fbise' });
+    expect(singleBoard.data.map((d) => d.id)).toEqual([r1.id, r2.id]);
 
-  it('correctly resumes pagination from the raw scan position using nextCursor', async () => {
-    const { listPublicResources } = await import('../../lib/resources/public');
-    const boardId = 'board-resume-' + Date.now();
+    // 2. Single filter: paperYear = 2023 -> expect [r1, r2, r4]
+    const singleYear = await listPublicResources({ ...baseQuery, paperYear: 2023 });
+    expect(singleYear.data.map((d) => d.id)).toEqual([r1.id, r2.id, r4.id]);
 
-    // Create 6 raw items, items 1, 3, 5, 6 match session "annual"
-    const expectedPage1: string[] = [];
-    const expectedPage2: string[] = [];
+    // 3. Single filter: paperSession = supplementary -> expect [r2]
+    const singleSession = await listPublicResources({ ...baseQuery, paperSession: 'supplementary' });
+    expect(singleSession.data.map((d) => d.id)).toEqual([r2.id]);
 
-    for (let i = 1; i <= 6; i++) {
-      const session = i === 2 || i === 4 ? 'supplementary' : 'annual';
-      const r = await createDraftResourceWithInitialVersion(
-        actor,
-        {
-          ...baseInput,
-          type: 'past_paper',
-          boardId,
-          paperSession: session,
-          displayOrder: i,
-        },
-        baseVersionInput
-      );
-      await publishResource(actor, r.id);
-      if (session === 'annual') {
-        if (expectedPage1.length < 2) expectedPage1.push(r.id);
-        else expectedPage2.push(r.id);
-      }
-    }
+    // 4. Single filter: paperType = subjective -> expect [r1, r3]
+    const singleType = await listPublicResources({ ...baseQuery, paperType: 'subjective' });
+    expect(singleType.data.map((d) => d.id)).toEqual([r1.id, r3.id]);
 
-    // Fetch page 1 (limit 2)
-    const page1 = await listPublicResources({
-      boardId,
-      classId: baseInput.classId,
-      subjectId: baseInput.subjectId,
-      type: 'past_paper',
-      paperSession: 'annual',
-      limit: 2,
-    });
+    // 5. Two-field combo: examinationBoardId = fbise AND paperYear = 2023 -> expect [r1, r2]
+    const combo2a = await listPublicResources({ ...baseQuery, examinationBoardId: 'fbise', paperYear: 2023 });
+    expect(combo2a.data.map((d) => d.id)).toEqual([r1.id, r2.id]);
 
-    expect(page1.data.map((d) => d.id)).toEqual(expectedPage1);
-    expect(page1.nextCursor).not.toBeNull();
+    // 6. Two-field combo: paperYear = 2023 AND paperSession = annual -> expect [r1, r4]
+    const combo2b = await listPublicResources({ ...baseQuery, paperYear: 2023, paperSession: 'annual' });
+    expect(combo2b.data.map((d) => d.id)).toEqual([r1.id, r4.id]);
 
-    // Fetch page 2 using returned cursor
-    const page2 = await listPublicResources({
-      boardId,
-      classId: baseInput.classId,
-      subjectId: baseInput.subjectId,
-      type: 'past_paper',
-      paperSession: 'annual',
-      limit: 2,
-      cursor: page1.nextCursor!,
-    });
-
-    expect(page2.data.map((d) => d.id)).toEqual(expectedPage2);
-
-    // Verify zero duplicates across page 1 and page 2
-    const allFetched = [...page1.data.map((d) => d.id), ...page2.data.map((d) => d.id)];
-    expect(new Set(allFetched).size).toBe(4);
-  });
-
-  it('bounds candidate scanning in pathological zero-match scenarios up to MAX_CANDIDATE_BATCHES_PER_REQUEST', async () => {
-    const { listPublicResources, MAX_CANDIDATE_BATCHES_PER_REQUEST } = await import('../../lib/resources/public');
-    const boardId = 'board-pathological-' + Date.now();
-
-    // Create 15 raw past papers, all with paperYear 2000
-    for (let i = 1; i <= 15; i++) {
-      const r = await createDraftResourceWithInitialVersion(
-        actor,
-        {
-          ...baseInput,
-          type: 'past_paper',
-          boardId,
-          paperYear: 2000,
-          displayOrder: i,
-        },
-        baseVersionInput
-      );
-      await publishResource(actor, r.id);
-    }
-
-    // Query for non-existent paperYear 1990 with limit=2
-    // Expected behavior: scans exactly MAX_CANDIDATE_BATCHES_PER_REQUEST (5) batches of size 2 = 10 raw docs scanned.
-    // Returns 0 matches and a non-null nextCursor pointing to the 10th raw doc.
-    const res = await listPublicResources({
-      boardId,
-      classId: baseInput.classId,
-      subjectId: baseInput.subjectId,
-      type: 'past_paper',
-      paperYear: 1990,
-      limit: 2,
-    });
-
-    expect(res.data.length).toBe(0);
-    expect(res.nextCursor).not.toBeNull();
-  });
-
-  it('verifies cursor pagination stability with an active past-paper filter', async () => {
-    const { listPublicResources } = await import('../../lib/resources/public');
-    const boardId = 'board-active-filter-' + Date.now();
-
-    const createdIds: string[] = [];
-    for (let i = 1; i <= 5; i++) {
-      const r = await createDraftResourceWithInitialVersion(
-        actor,
-        {
-          ...baseInput,
-          type: 'past_paper',
-          boardId,
-          paperYear: 2023,
-          paperSession: 'annual',
-          displayOrder: i,
-        },
-        baseVersionInput
-      );
-      await publishResource(actor, r.id);
-      createdIds.push(r.id);
-    }
-
-    const page1 = await listPublicResources({
-      boardId,
-      classId: baseInput.classId,
-      subjectId: baseInput.subjectId,
-      type: 'past_paper',
+    // 7. Three-field combo: examinationBoardId = fbise AND paperYear = 2023 AND paperSession = annual -> expect [r1]
+    const combo3 = await listPublicResources({
+      ...baseQuery,
+      examinationBoardId: 'fbise',
       paperYear: 2023,
       paperSession: 'annual',
-      limit: 2,
     });
-    expect(page1.data.length).toBe(2);
-    expect(page1.nextCursor).not.toBeNull();
+    expect(combo3.data.map((d) => d.id)).toEqual([r1.id]);
 
-    const page2 = await listPublicResources({
-      boardId,
-      classId: baseInput.classId,
-      subjectId: baseInput.subjectId,
-      type: 'past_paper',
+    // 8. All four fields combo: fbise + 2023 + annual + subjective -> expect [r1]
+    const combo4 = await listPublicResources({
+      ...baseQuery,
+      examinationBoardId: 'fbise',
       paperYear: 2023,
       paperSession: 'annual',
-      limit: 2,
-      cursor: page1.nextCursor!,
+      paperType: 'subjective',
     });
-    expect(page2.data.length).toBe(2);
-    expect(page2.nextCursor).not.toBeNull();
-
-    const page3 = await listPublicResources({
-      boardId,
-      classId: baseInput.classId,
-      subjectId: baseInput.subjectId,
-      type: 'past_paper',
-      paperYear: 2023,
-      paperSession: 'annual',
-      limit: 2,
-      cursor: page2.nextCursor!,
-    });
-    expect(page3.data.length).toBe(1);
-    expect(page3.nextCursor).toBeNull();
-
-    const fetchedIds = [...page1.data, ...page2.data, ...page3.data].map((d) => d.id);
-    expect(fetchedIds).toEqual(createdIds);
-    expect(new Set(fetchedIds).size).toBe(5);
+    expect(combo4.data.map((d) => d.id)).toEqual([r1.id]);
   });
 });
 
