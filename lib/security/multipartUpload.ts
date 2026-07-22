@@ -114,7 +114,7 @@ export function parseMultipartRequest(
           }
         });
 
-        file.pipe(tempFile.writeStream);
+        file.pipe(tempFile.writeStream, { end: false });
       } catch (err) {
         fileError = err as Error;
         file.resume();
@@ -149,13 +149,24 @@ export function parseMultipartRequest(
         return rejectWithError(new UploadError("VALIDATION_ERROR", "No file uploaded"));
       }
 
-      // Close the stream before returning
-      result.file.tempFile.writeStream.end(() => {
+      const stream = result.file.tempFile.writeStream;
+      if (stream.writableEnded || stream.writableFinished) {
         result.file!.sha256 = sha256Hash.digest("hex");
         result.file!.sizeBytes = sizeBytes;
         result.file!.magicBytesValid = magicBytesValid;
         resolve(result as MultipartParseResult);
-      });
+      } else {
+        stream.on("finish", () => {
+          result.file!.sha256 = sha256Hash.digest("hex");
+          result.file!.sizeBytes = sizeBytes;
+          result.file!.magicBytesValid = magicBytesValid;
+          resolve(result as MultipartParseResult);
+        });
+        stream.on("error", (err: unknown) => {
+          rejectWithError(err instanceof Error ? err : new Error(String(err)));
+        });
+        stream.end();
+      }
     });
 
     // Helper to clean up and reject

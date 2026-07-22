@@ -16,11 +16,11 @@ vi.mock("../../lib/uploads/config", () => ({
 // Mock tempFile to avoid actual disk IO
 vi.mock("../../lib/security/tempFile", () => {
   return {
-    createTempFile: vi.fn().mockResolvedValue({
+    createTempFile: vi.fn().mockImplementation(async () => ({
       filepath: "dummy/path",
       writeStream: new (require("stream").PassThrough)(),
       cleanup: vi.fn().mockResolvedValue(undefined),
-    }),
+    })),
   };
 });
 
