@@ -3,10 +3,11 @@ import * as crypto from "crypto";
 import { getUploadConfig } from "../../uploads/config";
 import { UploadTransaction, UploadOperation } from "../../uploads/types";
 import { UploadError } from "../../uploads/errors";
-import { createUploadTransaction, getUploadTransaction, updateUploadTransactionState, checkDuplicateContent } from "../../repositories/firestore/uploadTransactionRepository";
+import { createUploadTransaction, getUploadTransaction, updateUploadTransactionState } from "../../repositories/firestore/uploadTransactionRepository";
 import { ValidatedPdf } from "../../security/pdfValidation";
 import { StorageProvider } from "../../storage/StorageProvider";
 import { createDraftResourceWithInitialVersion, addResourceVersion } from "./resourceService";
+import { checkDuplicateResourceContent, checkDuplicateResourceVersion } from "../../repositories/firestore/resourceRepository";
 import { z } from "zod";
 import { uploadMetadataSchema } from "../../uploads/validation";
 import { TempFile } from "../../security/tempFile";
@@ -128,7 +129,7 @@ export class UploadService {
 
     // 2. Duplicate Policy Check
     if (parsedMetadata.operation === "create_resource") {
-      const duplicate = await checkDuplicateContent(
+      const duplicate = await checkDuplicateResourceContent(
         validatedPdf.sha256,
         parsedMetadata.type,
         parsedMetadata.boardId,
@@ -137,16 +138,18 @@ export class UploadService {
         parsedMetadata.chapterId || null
       );
       if (duplicate) {
-        await this.failTransaction(transactionId, "DUPLICATE_CONTENT", `Duplicate content found in resource ${duplicate.committedResourceId}`);
+        await this.failTransaction(transactionId, "DUPLICATE_CONTENT", `Duplicate content found in resource ${duplicate.resourceId}`);
         throw new UploadError("DUPLICATE_CONTENT", "Duplicate content within the same scope.");
       }
-    } else {
-      // replace_version logic will check duplicate version inside resource logic, but we can do it here if we load resource history.
-      // Phase 2A addResourceVersion doesn't explicitly reject duplicates by checksum unless we implement it there or here.
-      // Let's rely on the service/repo logic or a targeted check. We'll do it inside the transaction for atomic safety, but the prompt says:
-      // "Duplicate rejection occurs before Drive upload."
-      // Since Phase 2A versions have `sha256`, we'd ideally query the version collection.
-      // For now, this is a placeholder for `replace_version` duplicate check.
+    } else if (parsedMetadata.operation === "replace_version") {
+      const duplicateVersionId = await checkDuplicateResourceVersion(
+        parsedMetadata.resourceId!,
+        validatedPdf.sha256
+      );
+      if (duplicateVersionId) {
+        await this.failTransaction(transactionId, "DUPLICATE_CONTENT", `Duplicate content found in version ${duplicateVersionId}`);
+        throw new UploadError("DUPLICATE_CONTENT", "Duplicate content in version history.");
+      }
     }
 
     // 3. Drive Upload
@@ -251,7 +254,6 @@ export class UploadService {
         await updateUploadTransactionState(transactionId, "failed", {
           errorCode: errCode,
           sanitizedErrorMessage: err.message,
-          cleanupCompletedAt: { toDate: () => new Date(), seconds: 0, nanoseconds: 0 }, // fake timestamp for mock update
         });
       } else {
         await updateUploadTransactionState(transactionId, "cleanup_required", {

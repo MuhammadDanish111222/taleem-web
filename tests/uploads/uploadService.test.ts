@@ -2,8 +2,19 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { UploadService } from "../../lib/services/admin/uploadService";
 import { StorageProvider } from "../../lib/storage/StorageProvider";
 import { UploadError } from "../../lib/uploads/errors";
+import * as fs from "fs";
 import { ValidatedPdf } from "../../lib/security/pdfValidation";
 import { TempFile } from "../../lib/security/tempFile";
+
+vi.mock("fs", () => ({
+  createReadStream: vi.fn(() => {
+    const { PassThrough } = require("stream");
+    return new PassThrough();
+  }),
+  promises: {
+    unlink: vi.fn(),
+  }
+}));
 
 const mockStorageProvider: StorageProvider = {
   upload: vi.fn(),
@@ -16,7 +27,11 @@ vi.mock("../../lib/repositories/firestore/uploadTransactionRepository", () => ({
   createUploadTransaction: vi.fn(),
   getUploadTransaction: vi.fn(),
   updateUploadTransactionState: vi.fn(),
-  checkDuplicateContent: vi.fn(),
+}));
+
+vi.mock("../../lib/repositories/firestore/resourceRepository", () => ({
+  checkDuplicateResourceContent: vi.fn(),
+  checkDuplicateResourceVersion: vi.fn(),
 }));
 
 vi.mock("../../lib/services/admin/resourceService", () => ({
@@ -24,8 +39,9 @@ vi.mock("../../lib/services/admin/resourceService", () => ({
   addResourceVersion: vi.fn(),
 }));
 
-import { getUploadTransaction, createUploadTransaction, updateUploadTransactionState, checkDuplicateContent } from "../../lib/repositories/firestore/uploadTransactionRepository";
+import { getUploadTransaction, createUploadTransaction, updateUploadTransactionState } from "../../lib/repositories/firestore/uploadTransactionRepository";
 import { createDraftResourceWithInitialVersion } from "../../lib/services/admin/resourceService";
+import { checkDuplicateResourceContent } from "../../lib/repositories/firestore/resourceRepository";
 
 describe("Upload Service Failure Paths", () => {
   let uploadService: UploadService;
@@ -71,7 +87,7 @@ describe("Upload Service Failure Paths", () => {
 
   it("should reject duplicate content payload", async () => {
     vi.mocked(getUploadTransaction).mockResolvedValueOnce(null);
-    vi.mocked(checkDuplicateContent).mockResolvedValueOnce({ committedResourceId: "res123" } as any);
+    vi.mocked(checkDuplicateResourceContent).mockResolvedValueOnce({ resourceId: "res123", versionId: "v123" });
 
     await expect(uploadService.processUpload(
       "admin1", "req1", "idem1", metadata, dummyPdf, dummyTempFile
@@ -80,7 +96,7 @@ describe("Upload Service Failure Paths", () => {
 
   it("should trigger immediate compensation (delete from Drive) if Firestore metadata commit fails", async () => {
     vi.mocked(getUploadTransaction).mockResolvedValueOnce(null);
-    vi.mocked(checkDuplicateContent).mockResolvedValueOnce(null);
+    vi.mocked(checkDuplicateResourceContent).mockResolvedValueOnce(null);
     vi.mocked(mockStorageProvider.upload).mockResolvedValueOnce({ 
       provider: "google_drive",
       storageKey: "file_123",
@@ -107,7 +123,7 @@ describe("Upload Service Failure Paths", () => {
 
   it("should mark cleanup_required if compensation Drive deletion ALSO fails", async () => {
     vi.mocked(getUploadTransaction).mockResolvedValueOnce(null);
-    vi.mocked(checkDuplicateContent).mockResolvedValueOnce(null);
+    vi.mocked(checkDuplicateResourceContent).mockResolvedValueOnce(null);
     vi.mocked(mockStorageProvider.upload).mockResolvedValueOnce({ 
       provider: "google_drive",
       storageKey: "file_123",

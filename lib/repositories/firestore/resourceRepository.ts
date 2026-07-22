@@ -96,3 +96,60 @@ export function updateResourceTransactionally(
   const ref = getResourceRef(resourceId);
   transaction.update(ref, updates);
 }
+
+export async function checkDuplicateResourceContent(
+  sha256: string,
+  resourceType: string,
+  boardId: string,
+  classId: string,
+  subjectId: string,
+  chapterId: string | null
+): Promise<{ resourceId: string, versionId: string } | null> {
+  // First, check resources collection for exact match scope
+  let query = db().collection("resources")
+    .where("type", "==", resourceType)
+    .where("boardId", "==", boardId)
+    .where("classId", "==", classId)
+    .where("subjectId", "==", subjectId);
+
+  if (chapterId) {
+    query = query.where("chapterId", "==", chapterId);
+  } else {
+    query = query.where("chapterId", "==", null);
+  }
+
+  const matchingResources = await query.get();
+  if (matchingResources.empty) return null;
+
+  // For each matching resource, check its versions for the sha256
+  for (const doc of matchingResources.docs) {
+    const versionsSnapshot = await doc.ref.collection("versions")
+      .where("sha256", "==", sha256)
+      .limit(1)
+      .get();
+    
+    if (!versionsSnapshot.empty) {
+      return {
+        resourceId: doc.id,
+        versionId: versionsSnapshot.docs[0].id
+      };
+    }
+  }
+
+  return null;
+}
+
+export async function checkDuplicateResourceVersion(
+  resourceId: string,
+  sha256: string
+): Promise<string | null> {
+  const versionsSnapshot = await getResourceRef(resourceId).collection("versions")
+    .where("sha256", "==", sha256)
+    .limit(1)
+    .get();
+
+  if (!versionsSnapshot.empty) {
+    return versionsSnapshot.docs[0].id;
+  }
+  return null;
+}

@@ -47,6 +47,7 @@ export function parseMultipartRequest(
     let magicBytesValid = false;
     let magicBytesChecked = false;
     let fileProcessed = false;
+    let magicBytesBuffer = Buffer.alloc(0);
 
     bb.on("field", (name, val, info) => {
       if (info.nameTruncated || info.valueTruncated) {
@@ -92,12 +93,14 @@ export function parseMultipartRequest(
 
         file.on("data", (data: Buffer) => {
           if (!magicBytesChecked) {
-            // Check for %PDF-
-            const magicBytes = data.toString("ascii", 0, Math.min(data.length, 5));
-            if (magicBytes.startsWith("%PDF-")) {
-              magicBytesValid = true;
+            magicBytesBuffer = Buffer.concat([magicBytesBuffer, data]);
+            if (magicBytesBuffer.length >= 5) {
+              const magicBytes = magicBytesBuffer.toString("ascii", 0, 5);
+              if (magicBytes === "%PDF-") {
+                magicBytesValid = true;
+              }
+              magicBytesChecked = true;
             }
-            magicBytesChecked = true;
           }
 
           sizeBytes += data.length;

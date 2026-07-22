@@ -78,19 +78,19 @@ export async function POST(request: NextRequest) {
   
   try {
     // 1. Generate or obtain request ID (done)
-    // 2. Validate HTTP method and content type
+    // 2. Validate Origin
+    // 3. Validate CSRF token
+    await validateOriginAndCSRF(request);
+
+    // 4. Validate admin session cookie
+    // 5. Confirm admin authorization
+    const session = await requireAdminSession();
+    
+    // 6. Validate HTTP method and content type
     const contentType = request.headers.get("content-type") || "";
     if (!contentType.includes("multipart/form-data")) {
       throw new UploadError("VALIDATION_ERROR", "Content-Type must be multipart/form-data");
     }
-
-    // 3. Validate Origin
-    // 4. Validate CSRF token
-    await validateOriginAndCSRF(request);
-
-    // 5. Validate admin session cookie
-    // 6. Confirm admin authorization
-    const session = await requireAdminSession();
     
     // 7. Validate idempotency header format
     const idempotencyKey = request.headers.get("Idempotency-Key");

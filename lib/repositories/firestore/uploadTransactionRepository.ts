@@ -86,29 +86,4 @@ export async function getCleanupRequiredTransactions(limit: number = 10): Promis
   return snapshot.docs.map((doc) => doc.data() as UploadTransaction);
 }
 
-export async function checkDuplicateContent(
-  sha256: string,
-  resourceType: string,
-  boardId: string,
-  classId: string,
-  subjectId: string,
-  chapterId: string | null
-): Promise<UploadTransaction | null> {
-  const adminDb = getAdminFirestore();
-  let query = adminDb.collection(COLLECTION)
-    .where("sha256", "==", sha256)
-    .where("resourceType", "==", resourceType)
-    .where("boardId", "==", boardId)
-    .where("classId", "==", classId)
-    .where("subjectId", "==", subjectId);
-
-  if (chapterId) {
-    query = query.where("chapterId", "==", chapterId);
-  } else {
-    query = query.where("chapterId", "==", null);
-  }
-
-  const snapshot = await query.where("state", "==", "committed").limit(1).get();
-  if (snapshot.empty) return null;
-  return snapshot.docs[0].data() as UploadTransaction;
-}
+// checkDuplicateContent has been moved to resourceRepository to query the source of truth directly.
