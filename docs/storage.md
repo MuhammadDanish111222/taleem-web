@@ -44,6 +44,11 @@ npm run drive:authorize
 ```
 This command opens browser authorization, obtains your `GOOGLE_DRIVE_REFRESH_TOKEN`, automatically creates the target `"Taleem AI Content"` folder in your personal My Drive, and outputs the exact `.env.local` settings.
 
+> [!NOTE] OAuth Consent Status & Refresh Token Expiration
+> If your Google Cloud OAuth Consent Screen status is set to **"Testing"**, Google automatically expires refresh tokens after 7 days.
+> - **If Token Expires**: Re-run `npm run drive:authorize` to refresh credentials.
+> - **Permanent Fix**: In Google Cloud Console ➔ OAuth consent screen, click **Publish App** to switch status from "Testing" to "In production". Because the narrow `drive.file` scope is used, no verification process is required for personal use.
+
 ## Version Lifecycle
 Taleem AI resources use an immutable versioning system built on top of Firestore:
 - **Resource ID Stability:** A resource maintains the same stable Firestore document ID throughout its lifecycle.
