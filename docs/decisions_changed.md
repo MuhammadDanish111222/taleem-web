@@ -80,3 +80,19 @@ This document logs significant architectural decisions and changes made througho
 - **Change Details:**
   - The backend admin catalogue mutation API (`/api/admin/catalogue`, `catalogueService`) is fully operational. Front-end admin UI screens for content node management and examination board management are explicitly deferred to Module 7 (Admin Completeness & Operations).
 
+## Phase 2C: Content Browsing, Published-Only Reader & Byte-Range PDF Proxy
+- **Decision:** Byte-Range Proxy and Server-side Authorization Streaming.
+- **Change Details:**
+  - `Content-Disposition: inline` is served for preview routes and `attachment` for download routes.
+  - The proxy handles HTTP `Range` headers natively (`bytes=start-end`, `bytes=start-`, `bytes=-suffix`), clamping out-of-bounds `end` values to `version.sizeBytes - 1`, and returning `206 Partial Content`.
+  - Malformed Range syntax falls back to `200 OK` full file serving. Unsatisfiable ranges (`start >= version.sizeBytes`) return `416 Range Not Satisfiable`.
+- **Decision:** Cache-Control Strategy for Conditional Revalidation (ETag / 304).
+- **Change Details:**
+  - Responses set `Cache-Control: private, no-cache, must-revalidate` alongside `ETag: "${version.sha256}"`.
+  - Using `no-cache` instead of `no-store` enables browser conditional request caching (`If-None-Match`), allowing `304 Not Modified` responses while enforcing live publication status checks on every single request.
+- **Decision:** Restrictive Reader Content Security Policy & Self-Hosted PDF.js Worker.
+- **Change Details:**
+  - Path-scoped security headers for `/content/*` enforce `X-Content-Type-Options: nosniff` and `Content-Security-Policy: default-src 'self'; script-src 'self'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; frame-src 'self'; object-src 'none';`.
+  - Self-hosted PDF.js web worker bundle (`public/pdf.worker.min.mjs`) is used directly without external CDN dependencies.
+
+

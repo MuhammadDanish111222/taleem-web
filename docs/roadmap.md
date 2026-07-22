@@ -9,6 +9,8 @@
   - [x] Phase 1E: Admin Panel Shell & Admin Authorization
 - [ ] Phase 2: Core Platform & Content Delivery
   - [x] Phase 2A: Resource Schema and Storage Provider
+  - [x] Phase 2B: Secure Upload, Validation, OAuth2 Personal/Workspace Drive Storage, and Publishing Workflow
+  - [x] Phase 2C: Content Browsing, Published-Only Reader & Byte-Range PDF Proxy
 - [ ] Phase 3: AI Service Integration
 - [ ] Phase 4: Student Dashboard & Progress Tracking
 - [ ] Phase 5: Admin Panel

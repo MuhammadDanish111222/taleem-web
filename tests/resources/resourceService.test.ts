@@ -278,5 +278,92 @@ describe('Resource Service (Integration/Unit)', () => {
     await archiveResource(actor, resource.id);
     await expect(addResourceVersion(actor, resource.id, baseVersionInput)).rejects.toThrow(ResourceError);
   });
+
+  it('filters past papers by examinationBoardId, paperYear, paperSession, paperType and returns past paper DTO fields', async () => {
+    const { listPublicResources } = await import('../../lib/resources/public');
+    const boardId = 'board-past-paper-' + Date.now();
+
+    const ppInput = {
+      ...baseInput,
+      type: 'past_paper' as const,
+      boardId,
+      examinationBoardId: 'fbise',
+      paperYear: 2023,
+      paperSession: 'annual',
+      paperType: 'subjective',
+      displayOrder: 1,
+    };
+
+    const r = await createDraftResourceWithInitialVersion(actor, ppInput, baseVersionInput);
+    await publishResource(actor, r.id);
+
+    const res = await listPublicResources({
+      boardId,
+      classId: baseInput.classId,
+      subjectId: baseInput.subjectId,
+      type: 'past_paper',
+      examinationBoardId: 'fbise',
+      paperYear: 2023,
+      paperSession: 'annual',
+      paperType: 'subjective',
+    });
+
+    expect(res.data.length).toBe(1);
+    expect(res.data[0].id).toBe(r.id);
+    expect(res.data[0].examinationBoardId).toBe('fbise');
+    expect(res.data[0].paperYear).toBe(2023);
+    expect(res.data[0].paperSession).toBe('annual');
+    expect(res.data[0].paperType).toBe('subjective');
+  });
+
+  it('verifies cursor pagination produces zero duplicates or skipped records across pages', async () => {
+    const { listPublicResources } = await import('../../lib/resources/public');
+    const boardId = 'board-cursor-' + Date.now();
+
+    const createdIds: string[] = [];
+    for (let i = 1; i <= 5; i++) {
+      const r = await createDraftResourceWithInitialVersion(
+        actor,
+        { ...baseInput, boardId, title: `Book ${i}`, displayOrder: i },
+        baseVersionInput
+      );
+      await publishResource(actor, r.id);
+      createdIds.push(r.id);
+    }
+
+    const page1 = await listPublicResources({
+      boardId,
+      classId: baseInput.classId,
+      subjectId: baseInput.subjectId,
+      limit: 2,
+    });
+    expect(page1.data.length).toBe(2);
+    expect(page1.nextCursor).not.toBeNull();
+
+    const page2 = await listPublicResources({
+      boardId,
+      classId: baseInput.classId,
+      subjectId: baseInput.subjectId,
+      limit: 2,
+      cursor: page1.nextCursor!,
+    });
+    expect(page2.data.length).toBe(2);
+    expect(page2.nextCursor).not.toBeNull();
+
+    const page3 = await listPublicResources({
+      boardId,
+      classId: baseInput.classId,
+      subjectId: baseInput.subjectId,
+      limit: 2,
+      cursor: page2.nextCursor!,
+    });
+    expect(page3.data.length).toBe(1);
+    expect(page3.nextCursor).toBeNull();
+
+    const fetchedIds = [...page1.data, ...page2.data, ...page3.data].map((d) => d.id);
+    expect(fetchedIds).toEqual(createdIds);
+    expect(new Set(fetchedIds).size).toBe(5);
+  });
 });
+
 

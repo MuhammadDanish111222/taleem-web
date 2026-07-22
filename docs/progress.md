@@ -92,3 +92,20 @@ This document serves as a persistent record of the progress made across differen
   - Added automated seeding route `/api/test-upload/seed` and UI test page `/test-upload` with live Firestore document inspection.
   - Enforced strict production 404 gating via `proxy.ts` for all `/test-*` routes in production.
   - Verified 100% pass across unit test suite (52 tests) and real Firestore Emulator integration suite (40 tests including `scripts/manual-test-phase2b.test.ts`).
+
+## Phase 2C: Content Browsing, Published-Only Reader & Range-Aware PDF Proxy
+- **Status:** Completed
+- **Details:**
+  - Implemented flat server-rendered content browser pages (`/books`, `/notes`, `/past-papers`) driven by search parameters.
+  - Built interactive shared client component (`ContentBrowser.tsx`) supporting hierarchy selectors, past-paper query options (`examinationBoardId`, `paperYear`, `paperSession`, `paperType`), and cursor-based pagination.
+  - Built published-only paginated list API (`/api/content/route.ts`) extending `listPublicResources` with past paper filters and `ResourceError("VALIDATION_FAILED")` handling.
+  - Developed HTTP byte-range inline PDF proxy (`/api/content/[resourceId]/preview/route.ts`) supporting `200 OK`, `206 Partial Content` (standard, suffix, and clamped out-of-bounds `end`), malformed range syntax fallback, `416 Unsatisfiable`, `304 Not Modified` via ETag (`version.sha256`), and `404` status gating on hidden/draft/archived resources.
+  - Developed attachment download route (`/api/content/[resourceId]/download/route.ts`) setting RFC 5987 safe filename headers and rechecking live publication status.
+  - Built published-only PDF reader shell page (`/content/[resourceId]/page.tsx`) and client component (`PdfReader.tsx`) using self-hosted pdf.js web worker (`public/pdf.worker.min.mjs`).
+  - Implemented security headers (`X-Content-Type-Options: nosniff`, `Cache-Control: private, no-cache, must-revalidate`, and restrictive path-scoped CSP `default-src 'self'; script-src 'self'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; frame-src 'self'; object-src 'none';`).
+  - Defined composite indexes in `firestore.indexes.json` for past paper queries.
+- **Verification Performed:**
+  - **Unit Tests:** `npm run test:unit` passed 100% (75 tests across 16 files including 12 dedicated `tests/api/contentRoutes.test.ts` tests).
+  - **Rules & Emulator Integration:** `npm run test:rules` passed 100% (91 tests across 5 files including `resourceService.test.ts` past-paper filtering, DTO verification, and pagination stability).
+  - **Typecheck:** `npm run typecheck` passed cleanly with 0 TypeScript errors.
+  - **Client Bundle Scan:** `npm run scan:bundle` passed with 0 provider leakage issues in client JS bundles.

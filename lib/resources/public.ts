@@ -3,6 +3,7 @@ import { getAdminFirestore } from "../firebase/admin";
 import { PublicResourceDto, Resource } from "./types";
 import { publicResourceQuerySchema } from "./validation";
 import { validateCatalogueHierarchy } from "../services/catalogue/catalogueHierarchyService";
+import { ResourceError } from "./errors";
 
 export interface PublicResourceQuery {
   boardId: string;
@@ -10,6 +11,10 @@ export interface PublicResourceQuery {
   subjectId: string;
   chapterId?: string;
   type?: "book" | "note" | "past_paper";
+  examinationBoardId?: string;
+  paperYear?: number;
+  paperSession?: string;
+  paperType?: string;
   limit?: number;
   cursor?: string; // Base64 encoded JSON string
 }
@@ -28,6 +33,10 @@ function toPublicDto(resource: Resource): PublicResourceDto {
     classId: resource.classId,
     subjectId: resource.subjectId,
     chapterId: resource.chapterId,
+    examinationBoardId: resource.examinationBoardId ?? null,
+    paperYear: resource.paperYear ?? null,
+    paperSession: resource.paperSession ?? null,
+    paperType: resource.paperType ?? null,
     language: resource.language,
     curriculumVersion: resource.curriculumVersion,
     displayOrder: resource.displayOrder,
@@ -53,6 +62,18 @@ export async function listPublicResources(input: PublicResourceQuery): Promise<P
   if (query.type) {
     dbQuery = dbQuery.where("type", "==", query.type);
   }
+  if (query.examinationBoardId) {
+    dbQuery = dbQuery.where("examinationBoardId", "==", query.examinationBoardId);
+  }
+  if (query.paperYear !== undefined) {
+    dbQuery = dbQuery.where("paperYear", "==", query.paperYear);
+  }
+  if (query.paperSession) {
+    dbQuery = dbQuery.where("paperSession", "==", query.paperSession);
+  }
+  if (query.paperType) {
+    dbQuery = dbQuery.where("paperType", "==", query.paperType);
+  }
 
   dbQuery = dbQuery.orderBy("displayOrder", "asc").orderBy("__name__", "asc").limit(query.limit);
 
@@ -63,7 +84,7 @@ export async function listPublicResources(input: PublicResourceQuery): Promise<P
       dbQuery = dbQuery.startAfter(cursorData.displayOrder, cursorData.id);
     } catch (e) {
       // Invalid cursor
-      throw new Error("Invalid cursor format");
+      throw new ResourceError("VALIDATION_FAILED", "Invalid cursor format");
     }
   }
 

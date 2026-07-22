@@ -34,6 +34,10 @@ export const publicResourceQuerySchema = z.object({
   subjectId: z.string().min(1),
   chapterId: z.string().optional(),
   type: resourceTypeSchema.optional(),
-  limit: z.number().int().min(1).max(50).default(20),
+  examinationBoardId: z.string().optional(),
+  paperYear: z.coerce.number().int().optional(),
+  paperSession: z.string().optional(),
+  paperType: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
   cursor: z.string().optional(),
 });
