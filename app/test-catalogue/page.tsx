@@ -3,7 +3,13 @@ import { ClassSelector } from '../../components/selectors/ClassSelector';
 import { SubjectSelector } from '../../components/selectors/SubjectSelector';
 import { ChapterSelector } from '../../components/selectors/ChapterSelector';
 
+import { notFound } from "next/navigation";
+
 export default function TestCataloguePage() {
+  if (process.env.NODE_ENV === "production") {
+    notFound();
+  }
+
   return (
     <main className="p-8 max-w-2xl mx-auto space-y-6 bg-gray-50 min-h-screen text-gray-900">
       <h1 className="text-3xl font-bold mb-2">Catalogue Selectors Test</h1>

@@ -15,7 +15,9 @@ export interface UploadConfig {
 }
 
 export function getUploadConfig(): UploadConfig {
-  const secret = process.env.CONTENT_UPLOAD_IDEMPOTENCY_SECRET;
+  const secret =
+    process.env.CONTENT_UPLOAD_IDEMPOTENCY_SECRET ||
+    (process.env.NODE_ENV !== "production" ? "dev-secret-key-12345" : "");
   if (!secret) {
     throw new Error("CONTENT_UPLOAD_IDEMPOTENCY_SECRET is required");
   }
