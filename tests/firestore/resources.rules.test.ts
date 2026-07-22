@@ -16,10 +16,12 @@ describe('Firestore Security Rules - Resources', () => {
         rules: readFileSync(resolve(__dirname, '../../firestore.rules'), 'utf8'),
       },
     });
-  });
+  }, 30000);
 
   afterAll(async () => {
-    await testEnv.cleanup();
+    if (testEnv) {
+      await testEnv.cleanup();
+    }
   });
 
   beforeEach(async () => {
