@@ -13,6 +13,8 @@
   - [x] Phase 2C: Content Browsing, Published-Only Reader & Byte-Range PDF Proxy
   - [x] Phase 2D: Launch Search with Explicit Limits
 - [ ] Phase 3: AI Service Integration
+  - [x] Phase 3B: Cross-Repository Internal Auth & Durable Worker Runtime (Internal JWT Signer & Helper)
+  - [ ] Phase 3C: Pipeline Ingestion & Chunking Engine
 - [ ] Phase 4: Student Dashboard & Progress Tracking
 - [ ] Phase 5: Admin Panel
 - [ ] Phase 6: Assessments & Quizzes
