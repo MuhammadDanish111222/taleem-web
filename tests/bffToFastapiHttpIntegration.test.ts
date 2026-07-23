@@ -78,7 +78,7 @@ describe('Genuine HTTP Integration Test (BFF Helper & Next.js AI Probe Route -> 
         process.env.AI_SERVICE_URL = `http://127.0.0.1:${actualPort}`;
       }
       try {
-        const res = await fetch(`http://127.0.0.1:${actualPort}/health`, { signal: AbortSignal.timeout(1000) });
+        const res = await fetch(`http://127.0.0.1:${actualPort}/api/v1/health`, { signal: AbortSignal.timeout(1000) });
         if (res.ok) {
           started = true;
           break;
