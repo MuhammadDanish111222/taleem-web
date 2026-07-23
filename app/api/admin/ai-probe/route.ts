@@ -3,6 +3,9 @@ import { requireAdminSession } from '@/lib/auth/session';
 import { callAiService } from '@/lib/internalApi/callAiService';
 
 export async function GET(req: NextRequest) {
+  if (process.env.NODE_ENV === 'production' && process.env.ENABLE_AI_PROBE !== 'true') {
+    return NextResponse.json({ status: 'error', message: 'Not Found' }, { status: 404 });
+  }
   try {
     const session = await requireAdminSession();
     const result = await callAiService(
