@@ -55,7 +55,7 @@ describe('Genuine HTTP Integration Test (BFF Helper & Next.js AI Probe Route -> 
     const pythonBin = fs.existsSync(pythonExe) ? pythonExe : 'python';
 
     let serverLogs = '';
-    serverProcess = spawn(pythonBin, ['tests/run_fastapi_server.py', KEY_ID, String(port)], {
+    serverProcess = spawn(pythonBin, ['-u', 'tests/run_fastapi_server.py', KEY_ID, String(port)], {
       cwd: aiServiceDir,
       env: { ...process.env, MOCK_PUBLIC_KEY_PEM: publicKeyPem },
       stdio: ['pipe', 'pipe', 'pipe'],
