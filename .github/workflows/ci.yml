@@ -69,7 +69,7 @@ jobs:
         with:
           repository: MuhammadDanish111222/taleem-ai-service
           path: taleem-ai-service
-          ref: module-3/internal-auth-and-worker-runtime
+          ref: 71a632b1b8a26758cf166b8fe86dec0775092335
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
