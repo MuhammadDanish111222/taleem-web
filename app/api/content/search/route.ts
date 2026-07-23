@@ -5,7 +5,7 @@ import { ResourceError } from "@/lib/resources/errors";
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
+    const searchParams = request.nextUrl.searchParams;
 
     const boardId = searchParams.get("boardId") ?? "";
     const classId = searchParams.get("classId") ?? "";
