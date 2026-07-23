@@ -1,0 +1,100 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, module-3/internal-jwt-signer ]
+  pull_request:
+    branches: [ main, module-3/internal-jwt-signer ]
+    types: [ opened, synchronize, reopened ]
+
+jobs:
+  web-unit-tests:
+    name: web unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run test:unit
+
+  typecheck:
+    name: typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run typecheck
+
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run lint
+
+  production-build:
+    name: production build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build
+
+  cross-repository-http-integration-test:
+    name: cross-repository HTTP integration test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout taleem-web
+        uses: actions/checkout@v4
+        with:
+          path: taleem-web
+
+      - name: Checkout taleem-ai-service
+        uses: actions/checkout@v4
+        with:
+          repository: MuhammadDanish111222/taleem-ai-service
+          path: taleem-ai-service
+          ref: 10a29d0ba3633ed9f698a0263f65443c36d50b46
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: taleem-web/package-lock.json
+
+      - name: Install uv (Python package runner)
+        uses: astral-sh/setup-uv@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies for taleem-ai-service
+        working-directory: taleem-ai-service
+        run: uv sync
+
+      - name: Install Node dependencies for taleem-web
+        working-directory: taleem-web
+        run: npm ci
+
+      - name: Run cross-repository HTTP integration test
+        working-directory: taleem-web
+        run: npm run test:bff:http
