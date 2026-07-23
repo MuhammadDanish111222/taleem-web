@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main, module-3/internal-jwt-signer ]
   pull_request:
-    branches: [ main, module-3/internal-jwt-signer ]
+    types: [ opened, synchronize, reopened ]
 
 jobs:
   web-unit-tests:
@@ -69,7 +69,7 @@ jobs:
         with:
           repository: MuhammadDanish111222/taleem-ai-service
           path: taleem-ai-service
-          ref: 10a29d0c64eb37fa2bd33e46c7ccb8ff177242c1
+          ref: 10a29d0ba3633ed9f698a0263f65443c36d50b46
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
