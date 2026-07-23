@@ -69,10 +69,16 @@ describe('Genuine HTTP Integration Test (BFF Helper & Next.js AI Probe Route -> 
 
     // Wait for FastAPI server to start listening (up to 10s)
     let started = false;
+    let actualPort = port;
     for (let i = 0; i < 50; i++) {
       await new Promise((resolve) => setTimeout(resolve, 200));
+      const match = serverLogs.match(/SERVER_STARTED_PORT:(\d+)/);
+      if (match) {
+        actualPort = parseInt(match[1], 10);
+        process.env.AI_SERVICE_URL = `http://127.0.0.1:${actualPort}`;
+      }
       try {
-        const res = await fetch(`http://127.0.0.1:${port}/health`);
+        const res = await fetch(`http://127.0.0.1:${actualPort}/health`);
         if (res.ok) {
           started = true;
           break;
@@ -81,7 +87,7 @@ describe('Genuine HTTP Integration Test (BFF Helper & Next.js AI Probe Route -> 
     }
 
     if (!started) {
-      throw new Error(`FastAPI test server failed to start on OS-assigned port ${port}. Server logs:\n${serverLogs}`);
+      throw new Error(`FastAPI test server failed to start on OS-assigned port ${actualPort}. Server logs:\n${serverLogs}`);
     }
   }, 25000);
 
