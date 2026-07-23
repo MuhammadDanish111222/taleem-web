@@ -69,7 +69,7 @@ jobs:
         with:
           repository: MuhammadDanish111222/taleem-ai-service
           path: taleem-ai-service
-          ref: 10a29d0ba3633ed9f698a0263f65443c36d50b46
+          ref: 4134a6136efca783f98fa4c3f58a74ecff59d431
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
