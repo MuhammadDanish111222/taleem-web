@@ -1,3 +1,4 @@
+import 'server-only';
 import { SignJWT, importPKCS8 } from 'jose';
 import { v4 as uuidv4 } from 'uuid';
 

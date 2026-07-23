@@ -1,3 +1,4 @@
+import './mock-server-only';
 import { signInternalJwt } from '../lib/internalAuth/signInternalJwt';
 
 async function main() {

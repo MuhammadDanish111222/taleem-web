@@ -1,3 +1,4 @@
+import 'server-only';
 import { signInternalJwt } from '../internalAuth/signInternalJwt';
 
 export interface AiServiceOptions {
