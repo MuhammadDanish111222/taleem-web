@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ main, module-3/internal-jwt-signer ]
+    branches: [ main ]
   pull_request:
-    types: [ opened, synchronize, reopened ]
+    branches: [ main ]
 
 jobs:
   web-unit-tests:
@@ -17,7 +17,23 @@ jobs:
           node-version: 20
           cache: 'npm'
       - run: npm ci
-      - run: npm run test:unit
+      - run: npm run test
+
+  firestore-integration-tests:
+    name: Firestore emulator integration tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm ci
+      - run: npm run test:rules
 
   typecheck:
     name: typecheck
@@ -53,6 +69,7 @@ jobs:
       NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: "mock-project.appspot.com"
       NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "123456789"
       NEXT_PUBLIC_FIREBASE_APP_ID: "1:123456789:web:abcdef"
+      ADMIN_PANEL_ENABLED: "false"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -91,7 +108,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
       - name: Install Python dependencies for taleem-ai-service
         working-directory: taleem-ai-service

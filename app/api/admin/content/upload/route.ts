@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { requireAdminSession } from "@/lib/auth/session";
 import { DomainError } from "@/lib/services/admin/catalogueService";
 import { parseMultipartRequest } from "@/lib/security/multipartUpload";
@@ -9,6 +8,7 @@ import { GoogleDriveProvider } from "@/lib/storage/googleDriveProvider";
 import { UploadError } from "@/lib/uploads/errors";
 import { getUploadConfig } from "@/lib/uploads/config";
 import { v4 as uuidv4 } from "uuid";
+import { validateAdminWriteRequest } from "@/lib/security/adminWrite";
 
 function mapErrorToResponse(error: unknown) {
   if (error instanceof UploadError) {
@@ -49,30 +49,6 @@ function mapErrorToResponse(error: unknown) {
   return NextResponse.json({ error: "Internal server error" }, { status: 500 });
 }
 
-async function validateOriginAndCSRF(request: NextRequest) {
-  const origin = request.headers.get("origin");
-  const host = request.headers.get("host");
-
-  if (origin && host) {
-    const originUrl = new URL(origin);
-    if (originUrl.host !== host) {
-      throw new DomainError("FORBIDDEN", "Invalid origin");
-    }
-  }
-
-  const csrfHeader = request.headers.get("X-CSRF-Token");
-  if (!csrfHeader) {
-    throw new DomainError("FORBIDDEN", "Missing CSRF token");
-  }
-
-  const cookieStore = await cookies();
-  const csrfCookie = cookieStore.get("__csrf")?.value;
-
-  if (!csrfCookie || csrfCookie !== csrfHeader) {
-    throw new DomainError("FORBIDDEN", "CSRF token mismatch");
-  }
-}
-
 export async function POST(request: NextRequest) {
   const requestId = uuidv4();
   
@@ -80,11 +56,8 @@ export async function POST(request: NextRequest) {
     // 1. Generate or obtain request ID (done)
     // 2. Validate Origin
     // 3. Validate CSRF token
-    await validateOriginAndCSRF(request);
-
-    // 4. Validate admin session cookie
-    // 5. Confirm admin authorization
     const session = await requireAdminSession();
+    await validateAdminWriteRequest(request);
     
     // 6. Validate HTTP method and content type
     const contentType = request.headers.get("content-type") || "";

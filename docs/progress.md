@@ -148,4 +148,9 @@ This document serves as a persistent record of the progress made across differen
   - Automated test `tests/api/adminJsonlIngest.test.ts` verifying admin session authentication, JWT signing, payload forwarding, and 400 rejection on empty payloads.
   - Executed test 3 consecutive times with 100% pass rate.
   - Executed `npm run typecheck` 3 consecutive times with 0 errors.
-
+
+## Phase 3D (not started)
+
+- Phase 3D must embed both each chunk's `chunk_text` and each individual expected-question row in `chunk_expected_questions`.
+- Phase 3D is not complete until both embedding populations are tracked and verified.
+

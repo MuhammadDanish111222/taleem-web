@@ -15,6 +15,8 @@
 - [ ] Phase 3: AI Service Integration
   - [x] Phase 3B: Cross-Repository Internal Auth & Durable Worker Runtime (Internal JWT Signer & Helper)
   - [x] Phase 3C (v1-scoped): Admin JSONL Chunk Ingestion & Validation
+  - [ ] Phase 3D: Embed every `rag_chunks.content` value and every individual
+    `chunk_expected_questions.question_text` row. Completion requires both groups.
 - [ ] Phase 4: Student Dashboard & Progress Tracking
 - [ ] Phase 5: Admin Panel
 - [ ] Phase 6: Assessments & Quizzes
@@ -30,6 +32,12 @@
 - **taleem-web**: GitHub Actions CI runs on `main` and PRs. It performs `npm ci`, `npm run lint`, `npm run typecheck`, `npm run test` (Vitest), and `npm run build`.
 - **taleem-ai-service**: GitHub Actions CI runs on `main` and PRs. It performs `uv sync`, `ruff check .`, `ruff format --check .`, `python -m compileall app`, `pytest`, and a startup smoke test `smoke_test.py`.
 - **Module 1 Compliance**: Ensure both repositories pass all checks before proceeding to Module 2.
+
+## Admin deployment setting
+
+- Local laptop: `ADMIN_PANEL_ENABLED=true`
+- Vercel: `ADMIN_PANEL_ENABLED=false`
+- Railway continues to host the AI API and durable worker. The browser remains limited to same-origin Next.js BFF routes.
 
 ## Updated: Module 2 - Phase 2A Resource Schema and Storage Provider
 - Added resource versioning in Firestore.

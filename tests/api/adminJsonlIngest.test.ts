@@ -1,94 +1,98 @@
-/**
- * Unit test for Admin JSONL Ingestion Route POST /api/admin/ingest/jsonl.
- *
- * Environment: Verified against a mocked fetch / HTTP handler and mocked admin session.
- */
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { NextRequest } from "next/server";
+import { POST } from "@/app/api/admin/ingest/jsonl/route";
+import { requireAdminSession } from "@/lib/auth/session";
+import { callAiService } from "@/lib/internalApi/callAiService";
+import { validateAdminWriteRequest } from "@/lib/security/adminWrite";
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { POST } from '@/app/api/admin/ingest/jsonl/route';
-import { NextRequest } from 'next/server';
-import { generateKeyPair, exportPKCS8, decodeJwt } from 'jose';
+vi.mock("@/lib/auth/session", () => ({ requireAdminSession: vi.fn() }));
+vi.mock("@/lib/internalApi/callAiService", () => ({ callAiService: vi.fn() }));
+vi.mock("@/lib/security/adminWrite", () => ({ validateAdminWriteRequest: vi.fn() }));
 
-vi.mock('@/lib/auth/session', () => ({
-  requireAdminSession: vi.fn().mockResolvedValue({
-    uid: 'admin-user-999',
-    admin: true,
-  }),
-}));
+const sampleJsonl = JSON.stringify({
+  board_id: "fbise", class_id: "class_9", subject_id: "physics", chapter_id: "ch_1",
+  topic_no: "1.1", topic_title: "Title", chunk_order: 0, content_type: "explanation",
+  chunk_text: "Sample text", expected_questions: [],
+});
 
-describe('Admin JSONL Ingest Route POST /api/admin/ingest/jsonl', () => {
-  let privateKeyPem: string;
+function request(headers: Record<string, string> = {}) {
+  return new NextRequest("http://localhost:3000/api/admin/ingest/jsonl", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...headers },
+    body: JSON.stringify({ jsonl_content: sampleJsonl, idempotency_key: "key-1" }),
+  });
+}
+
+describe("Admin JSONL ingestion BFF", () => {
   const originalEnv = process.env;
 
-  beforeEach(async () => {
-    process.env = { ...originalEnv };
-    const { privateKey } = await generateKeyPair('RS256', { extractable: true });
-    privateKeyPem = await exportPKCS8(privateKey);
-    process.env.INTERNAL_JWT_PRIVATE_KEY = privateKeyPem;
-    process.env.INTERNAL_JWT_KEY_ID = 'ingest-kid';
-    process.env.AI_SERVICE_INTERNAL_URL = 'http://localhost:8000';
+  beforeEach(() => {
+    process.env = { ...originalEnv, ADMIN_PANEL_ENABLED: "true" };
+    vi.clearAllMocks();
+    vi.mocked(requireAdminSession).mockResolvedValue({ uid: "admin-user-999", admin: true } as any);
+    vi.mocked(validateAdminWriteRequest).mockResolvedValue();
+    vi.mocked(callAiService).mockResolvedValue({ status: "queued", job_id: "job-uuid-12345" });
   });
 
   afterEach(() => {
     process.env = originalEnv;
-    vi.restoreAllMocks();
   });
 
-  it('rejects empty or missing jsonl_content with status 400', async () => {
-    const req = new NextRequest('http://localhost:3000/api/admin/ingest/jsonl', {
-      method: 'POST',
-      body: JSON.stringify({ jsonl_content: '' }),
-    });
-    const res = await POST(req);
-    expect(res.status).toBe(400);
-    const data = await res.json();
-    expect(data.status).toBe('error');
-    expect(data.message).toContain('Missing or empty jsonl_content');
+  it("returns the normal 401 before reading or forwarding when the admin session is missing", async () => {
+    vi.mocked(requireAdminSession).mockRejectedValue(new Error("UNAUTHENTICATED"));
+
+    const res = await POST(request());
+
+    expect(res.status).toBe(401);
+    expect(validateAdminWriteRequest).not.toHaveBeenCalled();
+    expect(callAiService).not.toHaveBeenCalled();
   });
 
-  it('authenticates admin session, signs internal JWT, and forwards jsonl payload to AI service', async () => {
-    const sampleJsonl = '{"board_id":"fbise","class_id":"class_9","subject_id":"physics","chapter_id":"ch_1","topic_no":"1.1","topic_title":"Title","chunk_order":0,"content_type":"explanation","chunk_text":"Sample text"}';
+  it("returns the normal 403 for an authenticated non-admin without forwarding", async () => {
+    vi.mocked(requireAdminSession).mockRejectedValue(new Error("UNAUTHORIZED"));
 
-    const mockFetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        status: 'queued',
-        job_id: 'job-uuid-12345',
-        job_type: 'jsonl_ingest',
-        idempotency_key: 'idempotent-key-100',
-      }),
-    });
-    vi.stubGlobal('fetch', mockFetch);
+    const res = await POST(request());
 
-    const req = new NextRequest('http://localhost:3000/api/admin/ingest/jsonl', {
-      method: 'POST',
-      body: JSON.stringify({
-        jsonl_content: sampleJsonl,
-        idempotency_key: 'idempotent-key-100',
-      }),
-    });
+    expect(res.status).toBe(403);
+    expect(callAiService).not.toHaveBeenCalled();
+  });
 
-    const res = await POST(req);
+  it.each([
+    ["missing CSRF token", "Missing CSRF token"],
+    ["invalid CSRF token", "CSRF token mismatch"],
+    ["invalid Origin", "Invalid origin"],
+  ])("returns 403 for %s without forwarding", async (_label, message) => {
+    vi.mocked(validateAdminWriteRequest).mockRejectedValue(Object.assign(new Error(message), { status: 403 }));
+
+    const res = await POST(request());
+
+    expect(res.status).toBe(403);
+    expect(callAiService).not.toHaveBeenCalled();
+  });
+
+  it("forwards a valid protected request with its request ID", async () => {
+    const res = await POST(request({ "x-request-id": "req-jsonl-123" }));
+
     expect(res.status).toBe(202);
+    expect(validateAdminWriteRequest).toHaveBeenCalledTimes(1);
+    expect(callAiService).toHaveBeenCalledWith(
+      "/api/v1/internal/ingest/jsonl",
+      "POST",
+      expect.objectContaining({ jsonl_content: sampleJsonl, idempotency_key: "key-1" }),
+      "admin-user-999",
+      true,
+      "jsonl_ingest",
+      { requestId: "req-jsonl-123" },
+    );
+  });
 
-    const data = await res.json();
-    expect(data.status).toBe('success');
-    expect(data.data.job_id).toBe('job-uuid-12345');
-    expect(data.data.status).toBe('queued');
+  it("returns 404 without invoking auth or the AI service when the panel is disabled", async () => {
+    process.env.ADMIN_PANEL_ENABLED = "false";
 
-    const [url, init] = mockFetch.mock.calls[0];
-    expect(url).toBe('http://localhost:8000/api/v1/internal/ingest/jsonl');
-    expect(init.method).toBe('POST');
-    expect(init.headers['Authorization']).toContain('Bearer ');
+    const res = await POST(request());
 
-    const token = init.headers['Authorization'].replace('Bearer ', '');
-    const payload = decodeJwt(token);
-    expect(payload.uid).toBe('admin-user-999');
-    expect(payload.admin).toBe(true);
-    expect(payload.feature).toBe('jsonl_ingest');
-
-    const reqBody = JSON.parse(init.body);
-    expect(reqBody.jsonl_content).toBe(sampleJsonl);
-    expect(reqBody.idempotency_key).toBe('idempotent-key-100');
+    expect(res.status).toBe(404);
+    expect(requireAdminSession).not.toHaveBeenCalled();
+    expect(callAiService).not.toHaveBeenCalled();
   });
 });
