@@ -4,6 +4,7 @@ import { POST } from "@/app/api/admin/ingest/jsonl/route";
 import { requireAdminSession } from "@/lib/auth/session";
 import { callAiService } from "@/lib/internalApi/callAiService";
 import { validateAdminWriteRequest } from "@/lib/security/adminWrite";
+import { DomainError } from "@/lib/services/admin/catalogueService";
 
 vi.mock("@/lib/auth/session", () => ({ requireAdminSession: vi.fn() }));
 vi.mock("@/lib/internalApi/callAiService", () => ({ callAiService: vi.fn() }));
@@ -57,15 +58,31 @@ describe("Admin JSONL ingestion BFF", () => {
     expect(callAiService).not.toHaveBeenCalled();
   });
 
-  it.each([
-    ["missing CSRF token", "Missing CSRF token"],
-    ["invalid CSRF token", "CSRF token mismatch"],
-    ["invalid Origin", "Invalid origin"],
-  ])("returns 403 for %s without forwarding", async (_label, message) => {
-    vi.mocked(validateAdminWriteRequest).mockRejectedValue(Object.assign(new Error(message), { status: 403 }));
-
+  // validateAdminWriteRequest always throws DomainError("FORBIDDEN", ...) — never a plain Error.
+  // These three cases test the three distinct rejection paths in the real implementation.
+  it("returns 403 for missing CSRF token without forwarding", async () => {
+    vi.mocked(validateAdminWriteRequest).mockRejectedValue(
+      new DomainError("FORBIDDEN", "CSRF token mismatch"),
+    );
     const res = await POST(request());
+    expect(res.status).toBe(403);
+    expect(callAiService).not.toHaveBeenCalled();
+  });
 
+  it("returns 403 for invalid CSRF token without forwarding", async () => {
+    vi.mocked(validateAdminWriteRequest).mockRejectedValue(
+      new DomainError("FORBIDDEN", "CSRF token mismatch"),
+    );
+    const res = await POST(request());
+    expect(res.status).toBe(403);
+    expect(callAiService).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 for invalid Origin without forwarding", async () => {
+    vi.mocked(validateAdminWriteRequest).mockRejectedValue(
+      new DomainError("FORBIDDEN", "Invalid origin"),
+    );
+    const res = await POST(request());
     expect(res.status).toBe(403);
     expect(callAiService).not.toHaveBeenCalled();
   });
