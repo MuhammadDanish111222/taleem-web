@@ -123,3 +123,15 @@ This document serves as a persistent record of the progress made across differen
   - **Unit Tests:** `npm run test:unit` passed 100% (85 tests across 18 test files including `normalize.test.ts` and `resourceSearch.test.ts`).
   - **Rules & Emulator Integration:** `npm run test:rules` passed 100% (55 tests across 7 files including `resourceSearch.emulator.test.ts` and `backfill.emulator.test.ts`).
   - **Typecheck:** `npm run typecheck` passed cleanly with 0 TypeScript errors across 3 consecutive runs.
+
+## Phase 3B: Cross-Repository Internal JWT Signer & API Helper
+- **Status:** Completed
+- **Details:**
+  - Implemented `lib/internalAuth/signInternalJwt.ts` minting short-lived RS256 internal JWTs with 60-second TTL and claims: `uid`, `admin`, `feature`, `request_id`, `jti`, `iat`, `exp`, `aud` (`taleem-ai-service`), `iss` (`taleem-web`). Generates fresh `jti` UUID v4 per call.
+  - Implemented `lib/internalApi/callAiService.ts` as the central BFF-to-AI-service helper attaching internal authorization headers, propagating request context, and mapping AI service error responses into structured errors.
+  - Verified private key `INTERNAL_JWT_PRIVATE_KEY` resides strictly in server-side environment variables and is unreachable from client bundles.
+  - Built CLI token signer script (`scripts/sign_token_cli.ts`) for cross-repository end-to-end integration testing.
+- **Verification Performed:**
+  - `tests/internalAuth.test.ts` verifying RS256 signing, claims, JTI uniqueness, 60s TTL, and missing key error handling.
+  - `tests/callAiService.test.ts` verifying Authorization header attachment, request propagation, and error handling.
+  - `npm run test:unit`, `npm run lint`, `npm run build` executed cleanly.
