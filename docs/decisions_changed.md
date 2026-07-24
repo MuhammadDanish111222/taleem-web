@@ -159,6 +159,15 @@ This document logs significant architectural decisions and changes made througho
   - Direct fetch calls from BFF routes to `taleem-ai-service` are encapsulated in `callAiService.ts`.
   - Ensures every request signs an internal JWT, attaches `Authorization: Bearer <token>`, forwards `request_id`, and standardizes error handling for AI service response errors.
 
+## Phase 3C (v1-scoped): Admin JSONL Ingestion BFF Route
+- **Decision:** Admin JSONL Ingestion Route (`app/api/admin/ingest/jsonl/route.ts`).
+- **Change Details:**
+  - Exposes `POST /api/admin/ingest/jsonl` requiring an active admin session verified via `requireAdminSession()`.
+  - Validates `jsonl_content` non-empty string payload.
+  - Invokes `callAiService` with feature `'jsonl_ingest'`, generating a signed RS256 internal JWT and forwarding payload to `/api/v1/internal/ingest/jsonl` on `taleem-ai-service`.
+  - Returns `202 Accepted` with AI service job metadata (`job_id`, `status: "queued"`, `idempotency_key`).
+
+
 
 
 

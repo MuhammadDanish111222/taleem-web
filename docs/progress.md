@@ -134,4 +134,18 @@ This document serves as a persistent record of the progress made across differen
 - **Verification Performed:**
   - `tests/internalAuth.test.ts` verifying RS256 signing, claims, JTI uniqueness, 60s TTL, and missing key error handling.
   - `tests/callAiService.test.ts` verifying Authorization header attachment, request propagation, and error handling.
-  - `npm run test:unit`, `npm run lint`, `npm run build` executed cleanly.
+  - `npm run test:unit`, `npm run lint`, `npm run build` executed cleanly.
+
+## Phase 3C (v1-scoped): Admin JSONL Chunk Ingestion BFF Endpoint
+- **Status:** Completed
+- **Details:**
+  - Built `app/api/admin/ingest/jsonl/route.ts` BFF API route accepting admin uploaded JSONL chunk files.
+  - Validates active admin session using `requireAdminSession()`.
+  - Rejects missing, empty, or non-string `jsonl_content` with status `400 Bad Request`.
+  - Forwards requests to `taleem-ai-service` via `callAiService('/api/v1/internal/ingest/jsonl', 'POST', payload, session.uid, session.admin, 'jsonl_ingest')`, signing an internal RS256 JWT.
+  - Returns `202 Accepted` response with AI service job metadata (`job_id`, `status: "queued"`, `idempotency_key`).
+- **Verification Performed:**
+  - Automated test `tests/api/adminJsonlIngest.test.ts` verifying admin session authentication, JWT signing, payload forwarding, and 400 rejection on empty payloads.
+  - Executed test 3 consecutive times with 100% pass rate.
+  - Executed `npm run typecheck` 3 consecutive times with 0 errors.
+
