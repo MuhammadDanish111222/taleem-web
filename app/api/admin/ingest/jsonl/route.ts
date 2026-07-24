@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
     const session = await requireAdminSession();
     const body = await req.json().catch(() => null);
 
-    if (!body || !body.jsonl_content || typeof body.jsonl_content !== 'string' || !body.jsonl_content.strip?.() && !body.jsonl_content.trim()) {
+    if (!body || !body.jsonl_content || typeof body.jsonl_content !== 'string' || !body.jsonl_content.trim()) {
       return NextResponse.json(
         { status: 'error', message: 'Missing or empty jsonl_content' },
         { status: 400 }
