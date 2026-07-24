@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { requireAdminSession } from "@/lib/auth/session";
 import { DomainError } from "@/lib/services/admin/catalogueService";
 import { publishResource, hideResource, archiveResource, restoreArchivedResource } from "@/lib/services/admin/resourceService";
 import { ResourceError } from "@/lib/resources/errors";
 import { revalidateTag } from "next/cache";
 import { z } from "zod";
+import { validateAdminWriteRequest } from "@/lib/security/adminWrite";
 
 const mutationSchema = z.object({
   action: z.enum(["publish", "hide", "archive", "restore"]),
@@ -46,37 +46,13 @@ function mapErrorToResponse(error: unknown) {
   return NextResponse.json({ error: "Internal server error" }, { status: 500 });
 }
 
-async function validateOriginAndCSRF(request: NextRequest) {
-  const origin = request.headers.get("origin");
-  const host = request.headers.get("host");
-
-  if (origin && host) {
-    const originUrl = new URL(origin);
-    if (originUrl.host !== host) {
-      throw new DomainError("FORBIDDEN", "Invalid origin");
-    }
-  }
-
-  const csrfHeader = request.headers.get("X-CSRF-Token");
-  if (!csrfHeader) {
-    throw new DomainError("FORBIDDEN", "Missing CSRF token");
-  }
-
-  const cookieStore = await cookies();
-  const csrfCookie = cookieStore.get("__csrf")?.value;
-
-  if (!csrfCookie || csrfCookie !== csrfHeader) {
-    throw new DomainError("FORBIDDEN", "CSRF token mismatch");
-  }
-}
-
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await validateOriginAndCSRF(request);
     const session = await requireAdminSession();
+    await validateAdminWriteRequest(request);
     
     const body = await request.json();
     const { action } = mutationSchema.parse(body);

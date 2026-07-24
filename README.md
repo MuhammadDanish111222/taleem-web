@@ -28,3 +28,7 @@ npm run typecheck
 ## Project Status
 Please refer to [docs/roadmap.md](file:///d:/AI%20Learning/BEST%20WISHES/Taleem%20AI/taleem_ai/taleem-web/docs/roadmap.md) and [docs/progress.md](file:///d:/AI%20Learning/BEST WISHES/Taleem AI/taleem_ai/taleem-web/docs/progress.md) for detailed phase logs.
 
+## Admin deployment gate
+
+Set `ADMIN_PANEL_ENABLED=true` only on a local developer laptop. Set `ADMIN_PANEL_ENABLED=false` on Vercel; `/admin/*` and `/api/admin/*` then return 404 before admin authentication, Firebase Admin, internal JWT signing, or AI-service calls are reached. Public routes remain available.
+
