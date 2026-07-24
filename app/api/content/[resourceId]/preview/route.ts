@@ -4,8 +4,6 @@ import { GoogleDriveProvider } from "@/lib/storage/googleDriveProvider";
 import { ResourceError } from "@/lib/resources/errors";
 import { Readable } from "stream";
 
-export const dynamic = "force-dynamic";
-
 function sanitizeFilename(name: string): string {
   return name.replace(/[\/\x00-\x1F\x7F\x22\x27\x5C]/g, "_").trim() || "document.pdf";
 }

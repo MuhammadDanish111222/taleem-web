@@ -48,3 +48,9 @@ Strict separation of secrets is enforced:
 - **Storage Provider:** Google Workspace Shared Drive (used for PDF storage).
 - **Resource Versioning:** Immutable version control via Firestore.
 - **Trust Boundary:** Browser never directly accesses Google Drive URLs. It goes through Next.js proxy routes using authorized streams.
+
+## 5. Admin Ingestion BFF Flow (Phase 3C)
+- **Endpoint:** `POST /api/admin/ingest/jsonl`
+- **Security:** Requires valid admin session (`requireAdminSession`).
+- **Validation:** Validates non-empty `jsonl_content` string payload.
+- **Forwarding:** Invokes `callAiService('/api/v1/internal/ingest/jsonl', 'POST', payload, session.uid, session.admin, 'jsonl_ingest')`, signing an asymmetric RS256 internal JWT (`aud: "taleem-ai-service"`, 60s TTL) and returning `202 Accepted` with `job_id` and queued status.

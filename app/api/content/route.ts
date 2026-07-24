@@ -3,8 +3,6 @@ import { listPublicResources } from "@/lib/resources/public";
 import { ResourceError } from "@/lib/resources/errors";
 import { ZodError } from "zod";
 
-export const dynamic = "force-dynamic";
-
 export async function GET(req: NextRequest) {
   try {
     const searchParams = req.nextUrl.searchParams;

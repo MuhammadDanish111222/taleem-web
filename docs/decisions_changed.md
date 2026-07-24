@@ -147,5 +147,27 @@ This document logs significant architectural decisions and changes made througho
     3. Requirement for Urdu/Nasta'liq bilingual tokenization or stemming (Snowball/Hunspell).
     4. Search requirement spanning non-title fields (descriptions, tags, OCR page content).
 
+## Phase 3B: Cross-Repository Internal JWT Signer & API Helper
+- **Decision:** RS256 Internal JWT Signer (`lib/internalAuth/signInternalJwt.ts`).
+- **Change Details:**
+  - `taleem-web` acts as the trusted identity issuer (BFF layer). It signs short-lived RS256 JWTs using `INTERNAL_JWT_PRIVATE_KEY` and a configured `INTERNAL_JWT_KEY_ID`.
+  - Claims included: `uid`, `admin`, `feature`, `request_id`, `jti`, `iat`, `exp`, `aud: "taleem-ai-service"`, `iss: "taleem-web"`.
+  - Expiration is set to 60 seconds (`.setExpirationTime('60s')`) to ensure non-replayable short life.
+  - A fresh `jti` UUID v4 is generated on every call for Redis replay protection on the verifier side.
+- **Decision:** Centralized API Request Helper (`lib/internalApi/callAiService.ts`).
+- **Change Details:**
+  - Direct fetch calls from BFF routes to `taleem-ai-service` are encapsulated in `callAiService.ts`.
+  - Ensures every request signs an internal JWT, attaches `Authorization: Bearer <token>`, forwards `request_id`, and standardizes error handling for AI service response errors.
+
+## Phase 3C (v1-scoped): Admin JSONL Ingestion BFF Route
+- **Decision:** Admin JSONL Ingestion Route (`app/api/admin/ingest/jsonl/route.ts`).
+- **Change Details:**
+  - Exposes `POST /api/admin/ingest/jsonl` requiring an active admin session verified via `requireAdminSession()`.
+  - Validates `jsonl_content` non-empty string payload.
+  - Invokes `callAiService` with feature `'jsonl_ingest'`, generating a signed RS256 internal JWT and forwarding payload to `/api/v1/internal/ingest/jsonl` on `taleem-ai-service`.
+  - Returns `202 Accepted` with AI service job metadata (`job_id`, `status: "queued"`, `idempotency_key`).
+
+
+
 
 

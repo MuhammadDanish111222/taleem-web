@@ -4,8 +4,6 @@ import { getResource } from "@/lib/repositories/firestore/resourceRepository";
 import { ResourceError } from "@/lib/resources/errors";
 import { PdfReader } from "@/components/content/PdfReader";
 
-export const dynamic = "force-dynamic";
-
 type PageProps = {
   params: Promise<{
     resourceId: string;
