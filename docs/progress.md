@@ -140,17 +140,19 @@ This document serves as a persistent record of the progress made across differen
 - **Status:** Completed
 - **Details:**
   - Built `app/api/admin/ingest/jsonl/route.ts` BFF API route accepting admin uploaded JSONL chunk files.
+  - Enforces local-only admin gate via `isAdminPanelEnabled()` check returning `404 Not Found` when `ADMIN_PANEL_ENABLED=false`.
+  - Enforces CSRF token verification via `validateAdminWriteRequest()`.
   - Validates active admin session using `requireAdminSession()`.
   - Rejects missing, empty, or non-string `jsonl_content` with status `400 Bad Request`.
   - Forwards requests to `taleem-ai-service` via `callAiService('/api/v1/internal/ingest/jsonl', 'POST', payload, session.uid, session.admin, 'jsonl_ingest')`, signing an internal RS256 JWT.
   - Returns `202 Accepted` response with AI service job metadata (`job_id`, `status: "queued"`, `idempotency_key`).
 - **Verification Performed:**
-  - Automated test `tests/api/adminJsonlIngest.test.ts` verifying admin session authentication, JWT signing, payload forwarding, and 400 rejection on empty payloads.
-  - Executed test 3 consecutive times with 100% pass rate.
-  - Executed `npm run typecheck` 3 consecutive times with 0 errors.
+  - Automated tests (`tests/api/adminJsonlIngest.test.ts`, `tests/proxy.adminPanel.test.ts`, `tests/security/adminWrite.test.ts`) verifying route security, request parsing order, CSRF token validation, 404 gate behavior, and JWT forwarding.
+  - Pull Request #2 merged into `main` (`e62e7ca`).
+  - Executed full GitHub Actions CI run on `main` (`30124721819`) with 100% green pass rate across unit tests, Firestore emulator tests, lint, typecheck, production build, and cross-repo HTTP tests.
 
 ## Phase 3D (not started)
 
-- Phase 3D must embed both each chunk's `chunk_text` and each individual expected-question row in `chunk_expected_questions`.
+- Phase 3D must embed both each chunk's `chunk_text` and each individual expected-question row in `chunk_expected_questions` using `BAAI/bge-base-en-v1.5` (768 dimensions).
 - Phase 3D is not complete until both embedding populations are tracked and verified.
 
