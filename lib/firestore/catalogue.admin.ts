@@ -75,29 +75,47 @@ export async function getAdminChapters(boardId: string, classId: string, subject
 
 export async function getFullAdminTree() {
   await requireAdminSession();
-  
-  const boards = await getAdminBoards();
-  const tree = [];
-  
-  for (const board of boards) {
-    const classes = await getAdminClasses(board.slug);
-    const classesWithChildren = [];
-    
-    for (const cls of classes) {
-      const subjects = await getAdminSubjects(board.slug, cls.slug);
-      const subjectsWithChildren = [];
-      
-      for (const sub of subjects) {
-        const chapters = await getAdminChapters(board.slug, cls.slug, sub.slug);
-        subjectsWithChildren.push({ ...sub, chapters });
-      }
-      
-      classesWithChildren.push({ ...cls, subjects: subjectsWithChildren });
-    }
-    
-    tree.push({ ...board, classes: classesWithChildren });
-  }
-  
-  return tree;
-}
 
+  // This screen is refreshed after every catalogue mutation.  Fetch each
+  // independent branch in parallel instead of making one remote Firestore
+  // request at a time.  The public helpers retain their own session checks;
+  // this orchestration has already performed one check above.
+  const db = getAdminFirestore();
+  const boardsSnapshot = await db.collection("boards").orderBy("display_order", "asc").get();
+  const boards = boardsSnapshot.docs.map((doc) => doc.data() as Board);
+
+  return Promise.all(
+    boards.map(async (board) => {
+      const classesSnapshot = await db
+        .collection(`boards/${board.slug}/classes`)
+        .orderBy("display_order", "asc")
+        .get();
+      const classes = classesSnapshot.docs.map((doc) => doc.data() as ClassDoc);
+
+      const classesWithChildren = await Promise.all(
+        classes.map(async (cls) => {
+          const subjectsSnapshot = await db
+            .collection(`boards/${board.slug}/classes/${cls.slug}/subjects`)
+            .orderBy("display_order", "asc")
+            .get();
+          const subjects = subjectsSnapshot.docs.map((doc) => doc.data() as Subject);
+
+          const subjectsWithChildren = await Promise.all(
+            subjects.map(async (subject) => {
+              const chaptersSnapshot = await db
+                .collection(`boards/${board.slug}/classes/${cls.slug}/subjects/${subject.slug}/chapters`)
+                .orderBy("display_order", "asc")
+                .get();
+              const chapters = chaptersSnapshot.docs.map((doc) => doc.data() as Chapter);
+              return { ...subject, chapters };
+            })
+          );
+
+          return { ...cls, subjects: subjectsWithChildren };
+        })
+      );
+
+      return { ...board, classes: classesWithChildren };
+    })
+  );
+}
