@@ -122,6 +122,11 @@ export class GoogleDriveProvider implements StorageProvider {
 
       const contentRangeStr = res.headers["content-range"];
       let contentRange;
+      let metadata: StoredObjectMetadata | undefined;
+      const metadataForFallback = async () => {
+        metadata ??= await this.getMetadata(storageKey, options);
+        return metadata;
+      };
       if (contentRangeStr) {
         const match = contentRangeStr.match(/bytes (\d+)-(\d+)\/(\d+|\*)/);
         if (match) {
@@ -134,20 +139,32 @@ export class GoogleDriveProvider implements StorageProvider {
           throw new StorageError("STORAGE_INVALID_METADATA", "Malformed Content-Range");
         }
       } else if (res.status === 206) {
-        throw new StorageError("STORAGE_INVALID_METADATA", "Missing Content-Range");
+        // The live Google Drive API can return a 206 stream while the
+        // googleapis client exposes no response headers. Derive the exact
+        // range from trusted Drive metadata and our requested bounds instead.
+        const file = await metadataForFallback();
+        const start = range?.start ?? 0;
+        const end = Math.min(range?.end ?? file.sizeBytes - 1, file.sizeBytes - 1);
+        if (file.sizeBytes <= 0 || start > end) {
+          throw new StorageError("STORAGE_RANGE_INVALID", "Requested byte range is invalid");
+        }
+        contentRange = { start, end, total: file.sizeBytes };
       }
 
-      const mimeType = res.headers["content-type"];
+      const mimeType = res.headers["content-type"] || (await metadataForFallback()).mimeType;
       if (mimeType !== "application/pdf") {
         throw new StorageError("STORAGE_INVALID_METADATA", "MIME type is not application/pdf");
       }
+
+      const contentLength = parseInt(res.headers["content-length"] || "", 10) ||
+        (contentRange ? contentRange.end - contentRange.start + 1 : (await metadataForFallback()).sizeBytes);
 
       return {
         stream: res.data as NodeJS.ReadableStream,
         status: res.status === 206 ? 206 : 200,
         mimeType: "application/pdf",
-        contentLength: parseInt(res.headers["content-length"] || "0", 10),
-        totalSize: contentRange ? contentRange.total : parseInt(res.headers["content-length"] || "0", 10),
+        contentLength,
+        totalSize: contentRange ? contentRange.total : (await metadataForFallback()).sizeBytes,
         contentRange,
       };
     }, this.config.maxAttempts, options?.signal);
@@ -174,11 +191,15 @@ export class GoogleDriveProvider implements StorageProvider {
       const media = await this.drive.files.get({ fileId: storageKey, alt: "media", supportsAllDrives: true }, {
         responseType: "stream", signal: options?.signal,
       });
-      const actualType = media.headers["content-type"];
+      const actualType = media.headers["content-type"] || file.mimeType;
       if (!actualType || !allowed.has(actualType as SafeImageMimeType)) {
         throw new StorageError("STORAGE_INVALID_METADATA", "Visual response MIME type is not allowed");
       }
-      return { stream: media.data as NodeJS.ReadableStream, mimeType: actualType as SafeImageMimeType, contentLength: parseInt(media.headers["content-length"] || "0", 10) };
+      return {
+        stream: media.data as NodeJS.ReadableStream,
+        mimeType: actualType as SafeImageMimeType,
+        contentLength: parseInt(media.headers["content-length"] || "", 10) || parseInt(file.size || "0", 10),
+      };
     }, this.config.maxAttempts, options?.signal);
   }
 

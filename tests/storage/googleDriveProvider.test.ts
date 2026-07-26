@@ -144,6 +144,20 @@ describe('GoogleDriveProvider (Unit)', () => {
     );
   });
 
+  it('derives a partial range from trusted metadata when Drive omits response headers', async () => {
+    mockDrive.files.get
+      .mockResolvedValueOnce({ status: 206, headers: {}, data: {} as any })
+      .mockResolvedValueOnce({ data: {
+        id: 'file1', name: 'test.pdf', mimeType: 'application/pdf', size: '12',
+        headRevisionId: 'rev1', driveId: 'drive1', capabilities: { canDownload: true },
+      } });
+
+    const result = await provider.readRange('file1', { start: 0, end: 4 });
+
+    expect(result.contentRange).toEqual({ start: 0, end: 4, total: 12 });
+    expect(result.contentLength).toBe(5);
+  });
+
   it('streams an allowlisted image only after Drive metadata validation', async () => {
     mockDrive.files.get
       .mockResolvedValueOnce({ data: { id: 'image1', mimeType: 'image/png', size: '12', driveId: 'drive1', capabilities: { canDownload: true } } })
@@ -152,6 +166,17 @@ describe('GoogleDriveProvider (Unit)', () => {
     expect(image.mimeType).toBe('image/png');
     expect(image.contentLength).toBe(12);
     expect(mockDrive.files.get).toHaveBeenLastCalledWith(expect.objectContaining({ fileId: 'image1', alt: 'media' }), expect.anything());
+  });
+
+  it('uses verified metadata when Drive omits image response headers', async () => {
+    mockDrive.files.get
+      .mockResolvedValueOnce({ data: { id: 'image1', mimeType: 'image/png', size: '12', driveId: 'drive1', capabilities: { canDownload: true } } })
+      .mockResolvedValueOnce({ headers: {}, data: {} as any });
+
+    const image = await provider.readImage('image1');
+
+    expect(image.mimeType).toBe('image/png');
+    expect(image.contentLength).toBe(12);
   });
 
   it('rejects unsupported visual MIME types before reading media', async () => {
