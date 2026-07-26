@@ -82,7 +82,15 @@ export async function getFullAdminTree() {
   // this orchestration has already performed one check above.
   const db = getAdminFirestore();
   const boardsSnapshot = await db.collection("boards").orderBy("display_order", "asc").get();
-  const boards = boardsSnapshot.docs.map((doc) => doc.data() as Board);
+  const boards = boardsSnapshot.docs.map((doc) => {
+    const data = doc.data() as Board;
+    return {
+      name: data.name,
+      slug: data.slug,
+      active: data.active,
+      display_order: data.display_order,
+    };
+  });
 
   return Promise.all(
     boards.map(async (board) => {
@@ -90,7 +98,15 @@ export async function getFullAdminTree() {
         .collection(`boards/${board.slug}/classes`)
         .orderBy("display_order", "asc")
         .get();
-      const classes = classesSnapshot.docs.map((doc) => doc.data() as ClassDoc);
+      const classes = classesSnapshot.docs.map((doc) => {
+        const data = doc.data() as ClassDoc;
+        return {
+          name: data.name,
+          slug: data.slug,
+          active: data.active,
+          display_order: data.display_order,
+        };
+      });
 
       const classesWithChildren = await Promise.all(
         classes.map(async (cls) => {
@@ -98,7 +114,16 @@ export async function getFullAdminTree() {
             .collection(`boards/${board.slug}/classes/${cls.slug}/subjects`)
             .orderBy("display_order", "asc")
             .get();
-          const subjects = subjectsSnapshot.docs.map((doc) => doc.data() as Subject);
+          const subjects = subjectsSnapshot.docs.map((doc) => {
+            const data = doc.data() as Subject;
+            return {
+              name: data.name,
+              slug: data.slug,
+              active: data.active,
+              display_order: data.display_order,
+              icon: data.icon,
+            };
+          });
 
           const subjectsWithChildren = await Promise.all(
             subjects.map(async (subject) => {
@@ -106,7 +131,16 @@ export async function getFullAdminTree() {
                 .collection(`boards/${board.slug}/classes/${cls.slug}/subjects/${subject.slug}/chapters`)
                 .orderBy("display_order", "asc")
                 .get();
-              const chapters = chaptersSnapshot.docs.map((doc) => doc.data() as Chapter);
+              const chapters = chaptersSnapshot.docs.map((doc) => {
+                const data = doc.data() as Chapter;
+                return {
+                  title: data.title,
+                  slug: data.slug,
+                  chapter_number: data.chapter_number,
+                  active: data.active,
+                  display_order: data.display_order,
+                };
+              });
               return { ...subject, chapters };
             })
           );
