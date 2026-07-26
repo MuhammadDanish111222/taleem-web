@@ -65,6 +65,10 @@ Taleem AI resources use an immutable versioning system built on top of Firestore
 The storage provider exposes `readRange` to support authorized HTTP 206 Partial Content streams. 
 Phase 2C will use this to implement PDF preview and download routes without exposing signed URLs.
 
+## Local RAG Visual Preview
+
+Phase 3F adds a separate local-admin-only image stream for reviewed RAG visuals. The route first checks the local admin gate and authenticated admin session, resolves a scope-checked server-side visual reference, and then streams only PNG, JPEG, WebP, or GIF bytes from Drive. It never returns a Drive key or URL and sends `Cache-Control: private, no-store` plus `X-Content-Type-Options: nosniff`. PDF range streaming remains a separate path.
+
 ## Operations Checklist
 - **Shared Drive Setup:** Create a Shared Drive and note its ID. Create a content folder within it and note its ID.
 - **Service Account Membership:** Add the Service Account email to the Shared Drive with Editor access.

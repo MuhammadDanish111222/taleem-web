@@ -144,6 +144,22 @@ describe('GoogleDriveProvider (Unit)', () => {
     );
   });
 
+  it('streams an allowlisted image only after Drive metadata validation', async () => {
+    mockDrive.files.get
+      .mockResolvedValueOnce({ data: { id: 'image1', mimeType: 'image/png', size: '12', driveId: 'drive1', capabilities: { canDownload: true } } })
+      .mockResolvedValueOnce({ headers: { 'content-type': 'image/png', 'content-length': '12' }, data: {} as any });
+    const image = await provider.readImage('image1');
+    expect(image.mimeType).toBe('image/png');
+    expect(image.contentLength).toBe(12);
+    expect(mockDrive.files.get).toHaveBeenLastCalledWith(expect.objectContaining({ fileId: 'image1', alt: 'media' }), expect.anything());
+  });
+
+  it('rejects unsupported visual MIME types before reading media', async () => {
+    mockDrive.files.get.mockResolvedValueOnce({ data: { id: 'image1', mimeType: 'image/svg+xml', driveId: 'drive1', capabilities: { canDownload: true } } });
+    await expect(provider.readImage('image1')).rejects.toMatchObject({ code: 'STORAGE_INVALID_METADATA' });
+    expect(mockDrive.files.get).toHaveBeenCalledTimes(1);
+  });
+
   it('retries on 500 error', async () => {
     // Fail once with 500, then succeed
     mockDrive.files.delete.mockRejectedValueOnce({ status: 500 });

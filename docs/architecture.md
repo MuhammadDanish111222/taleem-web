@@ -43,8 +43,8 @@ Strict separation of secrets is enforced:
 - `DATABASE_URL`
 - `DEEPSEEK_API_KEY` & `OCR_KEYS`
 - `INTERNAL_JWT_PUBLIC_KEYS_JSON`
- 
- ## Storage & Resources
+
+## Storage & Resources
 - **Storage Provider:** Google Workspace Shared Drive (used for PDF storage).
 - **Resource Versioning:** Immutable version control via Firestore.
 - **Trust Boundary:** Browser never directly accesses Google Drive URLs. It goes through Next.js proxy routes using authorized streams.
@@ -53,4 +53,12 @@ Strict separation of secrets is enforced:
 - **Endpoint:** `POST /api/admin/ingest/jsonl`
 - **Security:** Requires valid admin session (`requireAdminSession`).
 - **Validation:** Validates non-empty `jsonl_content` string payload.
-- **Forwarding:** Invokes `callAiService('/api/v1/internal/ingest/jsonl', 'POST', payload, session.uid, session.admin, 'jsonl_ingest')`, signing an asymmetric RS256 internal JWT (`aud: "taleem-ai-service"`, 60s TTL) and returning `202 Accepted` with `job_id` and queued status.
+- **Forwarding:** Invokes `callAiService('/api/v1/internal/ingest/jsonl', 'POST', payload, session.uid, session.admin, 'jsonl_ingest')`, signing an asymmetric RS256 internal JWT (`aud: "taleem-ai-service"`, 60s TTL) and returning `202 Accepted` with `job_id` and queued status.
+
+## 6. RAG Retrieval and Local Administration (Phases 3D–3F)
+
+- **Embedding and retrieval:** `taleem-ai-service` owns pinned BGE embeddings, completeness gating, and SQL-scoped dense, expected-question, and lexical retrieval. The browser receives only safe retrieval evidence through authenticated BFF calls.
+- **Local admin boundary:** RAG QA, draft editing, activation, rollback, job inspection, and visual preview exist only when `ADMIN_PANEL_ENABLED=true` on the owner’s laptop. On public Vercel deployments the relevant BFF routes return 404 before session, parsing, or internal-service work.
+- **Write protection:** Local mutations require Firebase admin authorization, same-origin validation, CSRF validation, and a signed internal JWT with `admin=true`. The FastAPI service repeats authorization independently.
+- **Visuals:** JSONL chunk visuals are stored as server-side metadata linked to the corpus. The BFF resolves an authorized visual stream reference only after scope validation and streams allowlisted images from Google Drive; Drive keys and direct Drive URLs never reach the browser.
+- **Activation:** Active corpus versions are immutable. The local panel creates a draft, runs named-version QA, records approval, and activates or rolls back through one locked, audited database transaction. Railway-public owns no durable bulk ingestion or embedding jobs.

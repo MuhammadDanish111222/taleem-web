@@ -48,6 +48,12 @@ async function AuthGuard({ children }: { children: React.ReactNode }) {
             </svg>
             Catalogue
           </Link>
+          <Link
+            href="/admin/rag"
+            className="flex items-center gap-3 px-4 py-3 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/50 rounded-lg transition-colors"
+          >
+            RAG QA
+          </Link>
         </nav>
 
         <div className="p-4 border-t border-gray-200 dark:border-gray-700">

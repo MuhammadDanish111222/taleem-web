@@ -151,8 +151,21 @@ This document serves as a persistent record of the progress made across differen
   - Pull Request #2 merged into `main` (`e62e7ca`).
   - Executed full GitHub Actions CI run on `main` (`30124721819`) with 100% green pass rate across unit tests, Firestore emulator tests, lint, typecheck, production build, and cross-repo HTTP tests.
 
-## Phase 3D (not started)
+## Phase 3D: Embeddings and Corpus Completeness
 
-- Phase 3D must embed both each chunk's `chunk_text` and each individual expected-question row in `chunk_expected_questions` using `BAAI/bge-base-en-v1.5` (768 dimensions).
-- Phase 3D is not complete until both embedding populations are tracked and verified.
+- **Status:** Completed
+- **Details:** The service embeds chunks and individual expected questions with pinned, L2-normalized BGE `vector(768)` values. Per-row provenance, input hashes, counters, and readiness checks prevent incomplete or mismatched vectors from becoming `qa_ready`.
+- **Deployment:** Bulk ingestion and embedding work is owned by the local-admin worker. Railway-public owns no durable bulk jobs.
+
+## Phase 3E: Scoped Retrieval
+
+- **Status:** Completed
+- **Details:** Internal RAG retrieval uses SQL-scoped dense chunk, expected-question, and lexical channels. It deduplicates expected-question matches to parent chunks, fuses rank-only results deterministically, and returns safe citations and evidence strength without raw scores or vectors.
+
+## Phase 3F: Local Admin QA, Editing, and Activation
+
+- **Status:** Completed
+- **Details:** The local admin panel supports structured corpus inspection, job status, named-version QA, draft-only expected-question and visual editing, audit viewing, QA approval, activation, and rollback. Visuals remain Google Drive assets; only approved title/description metadata affects the parent chunk embedding.
+- **Security:** RAG administration and image preview are gated locally before authentication, parsing, or internal service calls. Writes require an admin session, Origin, CSRF, and a signed internal admin JWT. Browser responses never include vectors, Drive keys, provider details, or direct URLs.
+- **Verification:** Fresh PostgreSQL 17 + pgvector migrations, scoped Supabase rollback integration tests, the complete `105`-test service suite, and the emulator-aware `55`-test web suite passed.
 

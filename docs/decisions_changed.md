@@ -169,6 +169,18 @@ This document logs significant architectural decisions and changes made througho
   - Invokes `callAiService` with feature `'jsonl_ingest'`, generating a signed RS256 internal JWT and forwarding payload to `/api/v1/internal/ingest/jsonl` on `taleem-ai-service`.
   - Returns `202 Accepted` with AI service job metadata (`job_id`, `status: "queued"`, `idempotency_key`).
 
+## Phase 3D–3E: Embeddings and Retrieval Boundary
+- **Decision:** Keep bulk embeddings local and retrieval scoped in the service.
+  - The pinned BGE model embeds corpus chunks and expected questions with provenance/completeness validation. The web app never embeds corpus content and Railway-public owns no durable bulk job type. On-demand retrieval remains an authenticated internal-service concern and returns only safe citations, evidence strength, channels, and ranks.
+
+## Phase 3F: Local RAG Administration and Visual Preview
+- **Decision:** Use a local-only BFF control plane for corpus QA and activation.
+  - `ADMIN_PANEL_ENABLED` is the first check for RAG administration and visual-stream routes. Structured write requests require the existing Firebase admin session, same-origin validation, CSRF validation, and a signed internal JWT with `admin=true` before the service performs a mutation.
+- **Decision:** Stream reviewed visual images without exposing Drive identifiers.
+  - The service resolves the Drive key only for the trusted server BFF after corpus-scope validation. The BFF streams only allowlisted PNG, JPEG, WebP, and GIF response types with private no-store and nosniff headers. Drive keys, URLs, vectors, provider details, and image bytes are not persisted in browser-visible state.
+- **Decision:** Treat active corpus snapshots as immutable.
+  - Operators clone active versions to building drafts, apply targeted question/visual edits, re-embed only affected rows/chunks, run named-version QA, approve, and atomically activate or roll back. Activation locks the corpus before its versions and preserves exactly one active version.
+
 
 
 

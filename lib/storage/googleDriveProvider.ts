@@ -1,6 +1,6 @@
 import "server-only";
 import { drive_v3, google } from "googleapis";
-import { StorageProvider, StorageUploadInput, StoredObjectMetadata, StorageRequestOptions, ByteRange, StorageReadResult } from "./StorageProvider";
+import { StorageProvider, StorageUploadInput, StoredObjectMetadata, StorageRequestOptions, ByteRange, StorageReadResult, SafeImageMimeType, StorageImageReadResult } from "./StorageProvider";
 import { DriveConfig, getDriveConfig } from "./config";
 import { StorageError } from "./errors";
 import { withBoundedRetry } from "./retry";
@@ -150,6 +150,35 @@ export class GoogleDriveProvider implements StorageProvider {
         totalSize: contentRange ? contentRange.total : parseInt(res.headers["content-length"] || "0", 10),
         contentRange,
       };
+    }, this.config.maxAttempts, options?.signal);
+  }
+
+  /** Local-admin visual streaming only.  PDF paths continue to use readRange. */
+  async readImage(storageKey: string, options?: StorageRequestOptions): Promise<StorageImageReadResult> {
+    const allowed = new Set<SafeImageMimeType>(["image/png", "image/jpeg", "image/webp", "image/gif"]);
+    return withBoundedRetry(async () => {
+      const metadata = await this.drive.files.get({
+        fileId: storageKey,
+        fields: "id,mimeType,size,capabilities,driveId,trashed",
+        supportsAllDrives: true,
+      }, { signal: options?.signal });
+      const file = metadata.data;
+      if (file.trashed) throw new StorageError("STORAGE_NOT_FOUND", "Visual is trashed");
+      if (this.config.sharedDriveId && file.driveId && file.driveId !== this.config.sharedDriveId) {
+        throw new StorageError("STORAGE_PERMISSION_DENIED", "Visual is outside configured shared drive");
+      }
+      if (file.capabilities?.canDownload === false) throw new StorageError("STORAGE_DOWNLOAD_DISABLED", "Visual download is disabled");
+      if (!file.mimeType || !allowed.has(file.mimeType as SafeImageMimeType)) {
+        throw new StorageError("STORAGE_INVALID_METADATA", "Visual MIME type is not allowed");
+      }
+      const media = await this.drive.files.get({ fileId: storageKey, alt: "media", supportsAllDrives: true }, {
+        responseType: "stream", signal: options?.signal,
+      });
+      const actualType = media.headers["content-type"];
+      if (!actualType || !allowed.has(actualType as SafeImageMimeType)) {
+        throw new StorageError("STORAGE_INVALID_METADATA", "Visual response MIME type is not allowed");
+      }
+      return { stream: media.data as NodeJS.ReadableStream, mimeType: actualType as SafeImageMimeType, contentLength: parseInt(media.headers["content-length"] || "0", 10) };
     }, this.config.maxAttempts, options?.signal);
   }
 

@@ -12,11 +12,12 @@
   - [x] Phase 2B: Secure Upload, Validation, OAuth2 Personal/Workspace Drive Storage, and Publishing Workflow
   - [x] Phase 2C: Content Browsing, Published-Only Reader & Byte-Range PDF Proxy
   - [x] Phase 2D: Launch Search with Explicit Limits
-- [ ] Phase 3: AI Service Integration
+- [x] Phase 3: AI Service Integration
   - [x] Phase 3B: Cross-Repository Internal Auth & Durable Worker Runtime (Internal JWT Signer & Helper)
   - [x] Phase 3C (v1-scoped): Admin JSONL Chunk Ingestion & Validation
-  - [ ] Phase 3D: Embed every `rag_chunks.content` value and every individual
-    `chunk_expected_questions.question_text` row. Completion requires both groups.
+  - [x] Phase 3D: Pinned BGE embeddings and completeness checks for chunks and individual expected questions.
+  - [x] Phase 3E: SQL-scoped dense, expected-question, and lexical retrieval with deterministic rank-only fusion.
+  - [x] Phase 3F: Local-only RAG QA, draft editing, controlled visual previews, transactional activation, and rollback.
 - [ ] Phase 4: Student Dashboard & Progress Tracking
 - [ ] Phase 5: Admin Panel
 - [ ] Phase 6: Assessments & Quizzes
@@ -37,7 +38,7 @@
 
 - Local laptop: `ADMIN_PANEL_ENABLED=true`
 - Vercel: `ADMIN_PANEL_ENABLED=false`
-- Railway continues to host the AI API and durable worker. The browser remains limited to same-origin Next.js BFF routes.
+- Railway continues to host the AI API. Bulk ingestion and embedding jobs are local-admin-only; Railway-public owns no durable bulk jobs. The browser remains limited to same-origin Next.js BFF routes.
 
 ## Updated: Module 2 - Phase 2A Resource Schema and Storage Provider
 - Added resource versioning in Firestore.

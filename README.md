@@ -5,6 +5,7 @@ Next.js 16 App Router web application, student platform, and admin portal (`tale
 ## System Features
 - **Public & Admin Interfaces**: Dynamic catalogue selector, server-rendered catalogue pages, published-only resource reader, HTTP range-aware PDF proxy (`/api/content/[resourceId]/preview`), attachment downloader (`/api/content/[resourceId]/download`), and scoped search engine.
 - **Admin Ingestion BFF (Phase 3C)**: Secure admin endpoint (`POST /api/admin/ingest/jsonl`) validating admin sessions, constructing job payloads, signing 60-second RS256 internal JWTs, and forwarding ingestion requests to `taleem-ai-service`.
+- **Local RAG Admin (Phases 3D–3F)**: Local-only corpus QA, named draft retrieval, structured expected-question and visual edits, durable job status, controlled Drive image previews, and audited corpus activation/rollback.
 - **Internal Security & Auth**: Cross-repository RS256 asymmetric JWT signing (`signInternalJwt.ts`), double-submit CSRF cookie protection (`__csrf`), and browser isolation of backend secrets.
 
 ## Getting Started
@@ -30,5 +31,5 @@ Please refer to [docs/roadmap.md](file:///d:/AI%20Learning/BEST%20WISHES/Taleem%
 
 ## Admin deployment gate
 
-Set `ADMIN_PANEL_ENABLED=true` only on a local developer laptop. Set `ADMIN_PANEL_ENABLED=false` on Vercel; `/admin/*` and `/api/admin/*` then return 404 before admin authentication, Firebase Admin, internal JWT signing, or AI-service calls are reached. Public routes remain available.
+Set `ADMIN_PANEL_ENABLED=true` only on a local developer laptop. Set `ADMIN_PANEL_ENABLED=false` on Vercel; local RAG administration and its visual proxy return 404 before admin authentication, Firebase Admin, internal JWT signing, parsing, or AI-service calls are reached. Public routes remain available.
 

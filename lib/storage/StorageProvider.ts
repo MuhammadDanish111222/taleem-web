@@ -43,6 +43,14 @@ export interface StorageReadResult {
   };
 }
 
+export type SafeImageMimeType = "image/png" | "image/jpeg" | "image/webp" | "image/gif";
+
+export interface StorageImageReadResult {
+  stream: NodeJS.ReadableStream;
+  mimeType: SafeImageMimeType;
+  contentLength: number;
+}
+
 export interface StorageProvider {
   upload(input: StorageUploadInput): Promise<StoredObjectMetadata>;
 
