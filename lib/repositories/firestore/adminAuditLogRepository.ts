@@ -12,14 +12,15 @@ export type AuditAction =
   | "resource.restored"
   | "upload_transaction.created"
   | "upload_transaction.state_changed"
-  | "content.cleanup_completed";
+  | "content.cleanup_completed"
+  | "user.subscription_changed";
 
 export interface AdminAuditLog {
   id: string;
   actorUid: string;
   requestId: string | null;
   action: AuditAction;
-  entityType: "resource" | "upload_transaction";
+  entityType: "resource" | "upload_transaction" | "user";
   entityId: string;
   before: Record<string, unknown> | null;
   after: Record<string, unknown> | null;

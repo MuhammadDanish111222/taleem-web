@@ -7,7 +7,10 @@ import {
   createResourceInputSchema,
   resourceVersionMetadataSchema,
 } from "../../resources/validation";
-import { validateCatalogueHierarchy } from "../catalogue/catalogueHierarchyService";
+import {
+  validateCatalogueHierarchy,
+  validateExaminationBoard,
+} from "../catalogue/catalogueHierarchyService";
 import {
   generateResourceId,
   generateVersionId,
@@ -35,6 +38,7 @@ export async function createDraftResourceWithInitialVersion(
   const versionData = resourceVersionMetadataSchema.parse(versionInput);
 
   await validateCatalogueHierarchy(data.boardId, data.classId, data.subjectId, data.chapterId);
+  await validateExaminationBoard(data.boardId, data.examinationBoardId);
 
   const searchFields = computeSearchFields(data.title);
 
@@ -196,6 +200,7 @@ export async function publishResource(actor: AdminActorContext, resourceId: stri
 
     // Must await the validation since it uses other gets (outside transaction for catalogue config, which is cached)
     await validateCatalogueHierarchy(resource.boardId, resource.classId, resource.subjectId, resource.chapterId);
+    await validateExaminationBoard(resource.boardId, resource.examinationBoardId);
 
     const updates = {
       status: "published" as const,

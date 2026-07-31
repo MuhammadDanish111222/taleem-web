@@ -92,3 +92,19 @@ export interface PublicResourceDto {
   publishedAt: string | null;
 }
 
+export interface AdminResourceDto extends PublicResourceDto {
+  status: ResourceStatus;
+  currentVersionId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminResourceVersionDto {
+  id: string;
+  originalFilename: string;
+  sizeBytes: number;
+  pageCount: number;
+  supersedesVersionId: string | null;
+  createdAt: string;
+}
+

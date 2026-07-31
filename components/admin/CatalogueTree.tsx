@@ -25,14 +25,16 @@ function CatalogueNode({
   const childLevel = level === "board" ? "class" : level === "class" ? "subject" : level === "subject" ? "chapter" : null;
   const childrenKey = level === "board" ? "classes" : level === "class" ? "subjects" : level === "subject" ? "chapters" : null;
   const children = childrenKey ? item[childrenKey] : [];
+  const examinationBoards = level === "board" ? item.examinationBoards || [] : [];
 
   const currentIds = { ...parentIds };
   if (level === "board") currentIds.boardId = item.slug;
+  if (level === "examinationBoard") currentIds.examinationBoardId = item.slug;
   if (level === "class") currentIds.classId = item.slug;
   if (level === "subject") currentIds.subjectId = item.slug;
   if (level === "chapter") currentIds.chapterId = item.slug;
 
-  const hasChildren = children && children.length > 0;
+  const hasChildren = (children && children.length > 0) || examinationBoards.length > 0;
 
   return (
     <div className="mb-2">
@@ -91,7 +93,9 @@ function CatalogueNode({
               )}
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 font-mono">
-              {item.slug} {hasChildren && `(${children.length} ${childrenKey})`}
+              {item.slug}
+              {level === "board" && ` (${children.length} classes, ${examinationBoards.length} exam boards)`}
+              {level !== "board" && hasChildren && ` (${children.length} ${childrenKey})`}
             </div>
           </div>
         </div>
@@ -121,11 +125,47 @@ function CatalogueNode({
               + Add {childLevel}
             </button>
           )}
+          {level === "board" && (
+            <button
+              onClick={() => {
+                setFormConfig({
+                  isOpen: true,
+                  level: "examinationBoard",
+                  parentIds: { boardId: item.slug },
+                });
+                setIsExpanded(true);
+              }}
+              className="px-3 py-1 text-sm bg-violet-50 text-violet-700 hover:bg-violet-100 rounded dark:bg-violet-900/30 dark:text-violet-300"
+            >
+              + Add exam board
+            </button>
+          )}
         </div>
       </div>
 
       {isExpanded && hasChildren && (
         <div className="ml-9 mt-2 border-l-2 border-gray-100 dark:border-gray-700 pl-4">
+          {level === "board" && examinationBoards.length > 0 && (
+            <div className="mb-3 space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wider text-violet-400">
+                Examination boards
+              </p>
+              {examinationBoards.map((examBoard: any, examIndex: number) => (
+                <CatalogueNode
+                  key={examBoard.slug}
+                  level="examinationBoard"
+                  item={examBoard}
+                  parentIds={{ boardId: item.slug }}
+                  siblings={examinationBoards}
+                  index={examIndex}
+                  handleReorder={handleReorder}
+                  handleToggleActive={handleToggleActive}
+                  setFormConfig={setFormConfig}
+                  loadingId={loadingId}
+                />
+              ))}
+            </div>
+          )}
           {children.map((child: any, childIdx: number) => (
             <CatalogueNode
               key={child.slug}
@@ -151,7 +191,7 @@ export default function CatalogueTree({ initialTree }: { initialTree: any[] }) {
   const [formConfig, setFormConfig] = useState<{
     isOpen: boolean;
     initialData?: any;
-    level: "board" | "class" | "subject" | "chapter";
+    level: "board" | "examinationBoard" | "class" | "subject" | "chapter";
     parentIds: any;
   } | null>(null);
 
@@ -168,6 +208,7 @@ export default function CatalogueTree({ initialTree }: { initialTree: any[] }) {
       };
       
       if (level === "board") mutation.boardId = item.slug;
+      if (level === "examinationBoard") mutation.examinationBoardId = item.slug;
       if (level === "class") mutation.classId = item.slug;
       if (level === "subject") mutation.subjectId = item.slug;
       if (level === "chapter") mutation.chapterId = item.slug;

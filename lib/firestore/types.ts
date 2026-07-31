@@ -5,6 +5,13 @@ export interface Board {
   display_order: number;
 }
 
+export interface ExaminationBoard {
+  name: string;
+  slug: string;
+  active: boolean;
+  display_order: number;
+}
+
 export interface ClassDoc {
   name: string;
   slug: string;

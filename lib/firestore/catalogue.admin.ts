@@ -1,6 +1,6 @@
 import "server-only";
 import { getAdminFirestore } from "@/lib/firebase/admin";
-import { Board, ClassDoc, Subject, Chapter } from "./types";
+import { Board, ClassDoc, Subject, Chapter, ExaminationBoard } from "./types";
 import { requireAdminSession } from "@/lib/auth/session";
 
 export async function getAdminBoards(): Promise<Board[]> {
@@ -94,10 +94,19 @@ export async function getFullAdminTree() {
 
   return Promise.all(
     boards.map(async (board) => {
-      const classesSnapshot = await db
-        .collection(`boards/${board.slug}/classes`)
-        .orderBy("display_order", "asc")
-        .get();
+      const [classesSnapshot, examinationBoardsSnapshot] = await Promise.all([
+        db.collection(`boards/${board.slug}/classes`).orderBy("display_order", "asc").get(),
+        db.collection(`boards/${board.slug}/examinationBoards`).orderBy("display_order", "asc").get(),
+      ]);
+      const examinationBoards = examinationBoardsSnapshot.docs.map((doc) => {
+        const data = doc.data() as ExaminationBoard;
+        return {
+          name: data.name,
+          slug: data.slug,
+          active: data.active,
+          display_order: data.display_order,
+        };
+      });
       const classes = classesSnapshot.docs.map((doc) => {
         const data = doc.data() as ClassDoc;
         return {
@@ -149,7 +158,7 @@ export async function getFullAdminTree() {
         })
       );
 
-      return { ...board, classes: classesWithChildren };
+      return { ...board, examinationBoards, classes: classesWithChildren };
     })
   );
 }

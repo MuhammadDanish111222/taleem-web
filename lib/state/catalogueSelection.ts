@@ -10,6 +10,12 @@ interface CatalogueSelectionState {
   setClass: (id: string | null) => void;
   setSubject: (id: string | null) => void;
   setChapter: (id: string | null) => void;
+  hydrate: (selection: {
+    boardId: string | null;
+    classId: string | null;
+    subjectId: string | null;
+    chapterId: string | null;
+  }) => void;
   resetAll: () => void;
 }
 
@@ -37,6 +43,7 @@ export const useCatalogueSelection = create<CatalogueSelectionState>((set) => ({
   setChapter: (id) => set({ 
     chapterId: id 
   }),
+  hydrate: (selection) => set(selection),
   resetAll: () => set({ 
     boardId: null, 
     classId: null, 

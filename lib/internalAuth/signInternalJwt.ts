@@ -6,7 +6,8 @@ export async function signInternalJwt(
   uid: string,
   isAdmin: boolean = false,
   feature: string = 'general',
-  requestId?: string
+  requestId?: string,
+  accountTier?: "anonymous" | "google" | "premium",
 ): Promise<string> {
   const privateKey = process.env.INTERNAL_JWT_PRIVATE_KEY;
   const keyId = process.env.INTERNAL_JWT_KEY_ID;
@@ -31,6 +32,7 @@ export async function signInternalJwt(
     admin: isAdmin,
     feature,
     request_id: reqId,
+    ...(accountTier ? { account_tier: accountTier } : {}),
   })
     .setProtectedHeader({ alg: 'RS256', kid: keyId })
     .setIssuedAt()

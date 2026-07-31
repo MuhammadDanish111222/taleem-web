@@ -17,6 +17,20 @@ export const createResourceInputSchema = z.object({
   language: z.string().min(1).max(50).trim(),
   curriculumVersion: z.string().min(1).max(50).trim(),
   displayOrder: z.number().int().nonnegative(),
+}).superRefine((data, ctx) => {
+  if (data.type !== "past_paper") return;
+  if (!data.examinationBoardId) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["examinationBoardId"], message: "Examination board is required for a past paper" });
+  }
+  if (!data.paperYear || data.paperYear < 1900 || data.paperYear > 2100) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["paperYear"], message: "A valid paper year is required" });
+  }
+  if (!data.paperSession?.trim()) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["paperSession"], message: "Paper session is required" });
+  }
+  if (!data.paperType?.trim()) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["paperType"], message: "Paper type is required" });
+  }
 });
 
 export const resourceVersionMetadataSchema = z.object({

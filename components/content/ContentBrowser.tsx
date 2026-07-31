@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { PublicResourceDto } from "@/lib/resources/types";
 import { BoardSelector } from "@/components/selectors/BoardSelector";
@@ -8,6 +8,8 @@ import { ClassSelector } from "@/components/selectors/ClassSelector";
 import { SubjectSelector } from "@/components/selectors/SubjectSelector";
 import { ChapterSelector } from "@/components/selectors/ChapterSelector";
 import { useCatalogueSelection } from "@/lib/state/catalogueSelection";
+import { getExaminationBoards } from "@/lib/firestore/catalogue";
+import { useCatalogueOptions } from "@/lib/hooks/useCatalogueOptions";
 
 interface ContentBrowserProps {
   resourceType: "book" | "note" | "past_paper";
@@ -31,7 +33,7 @@ export function ContentBrowser({
   resourceType,
   title,
   description,
-  initialData = [],
+  initialData,
   initialNextCursor = null,
   initialSearchParams = {},
 }: ContentBrowserProps) {
@@ -40,20 +42,29 @@ export function ContentBrowser({
     classId,
     subjectId,
     chapterId,
-    setBoard,
-    setClass,
-    setSubject,
-    setChapter,
+    hydrate,
   } = useCatalogueSelection();
+  const hasServerInitialData = initialData !== undefined;
 
   // Past paper filter states
   const [examinationBoardId, setExaminationBoardId] = useState<string>(initialSearchParams.examinationBoardId || "");
   const [paperYear, setPaperYear] = useState<string>(initialSearchParams.paperYear || "");
   const [paperSession, setPaperSession] = useState<string>(initialSearchParams.paperSession || "");
   const [paperType, setPaperType] = useState<string>(initialSearchParams.paperType || "");
+  const [appliedPaperFilters, setAppliedPaperFilters] = useState({
+    examinationBoardId: initialSearchParams.examinationBoardId || "",
+    paperYear: initialSearchParams.paperYear || "",
+    paperSession: initialSearchParams.paperSession || "",
+    paperType: initialSearchParams.paperType || "",
+  });
+  const skippedServerInitialFetch = useRef(false);
+  const examinationBoards = useCatalogueOptions(
+    boardId ? `public-examination-boards:${boardId}` : null,
+    () => getExaminationBoards(boardId!),
+  );
 
   // Resource browsing states
-  const [resources, setResources] = useState<PublicResourceDto[]>(initialData);
+  const [resources, setResources] = useState<PublicResourceDto[]>(initialData ?? []);
   const [nextCursor, setNextCursor] = useState<string | null>(initialNextCursor);
   const [loading, setLoading] = useState<boolean>(false);
   const [loadingMore, setLoadingMore] = useState<boolean>(false);
@@ -125,13 +136,21 @@ export function ContentBrowser({
 
   // Sync search params on initial load if provided
   useEffect(() => {
-    if (initialSearchParams.boardId) setBoard(initialSearchParams.boardId);
-    if (initialSearchParams.classId) setClass(initialSearchParams.classId);
-    if (initialSearchParams.subjectId) setSubject(initialSearchParams.subjectId);
-    if (initialSearchParams.chapterId) setChapter(initialSearchParams.chapterId);
-  }, []);
+    hydrate({
+      boardId: initialSearchParams.boardId ?? null,
+      classId: initialSearchParams.classId ?? null,
+      subjectId: initialSearchParams.subjectId ?? null,
+      chapterId: initialSearchParams.chapterId ?? null,
+    });
+  }, [
+    hydrate,
+    initialSearchParams.boardId,
+    initialSearchParams.chapterId,
+    initialSearchParams.classId,
+    initialSearchParams.subjectId,
+  ]);
 
-  const fetchResources = async (cursor?: string) => {
+  const fetchResources = useCallback(async (cursor?: string) => {
     if (!boardId || !classId || !subjectId) return;
 
     if (cursor) {
@@ -149,10 +168,10 @@ export function ContentBrowser({
       params.set("type", resourceType);
 
       if (chapterId) params.set("chapterId", chapterId);
-      if (examinationBoardId) params.set("examinationBoardId", examinationBoardId);
-      if (paperYear) params.set("paperYear", paperYear);
-      if (paperSession) params.set("paperSession", paperSession);
-      if (paperType) params.set("paperType", paperType);
+      if (appliedPaperFilters.examinationBoardId) params.set("examinationBoardId", appliedPaperFilters.examinationBoardId);
+      if (appliedPaperFilters.paperYear) params.set("paperYear", appliedPaperFilters.paperYear);
+      if (appliedPaperFilters.paperSession) params.set("paperSession", appliedPaperFilters.paperSession);
+      if (appliedPaperFilters.paperType) params.set("paperType", appliedPaperFilters.paperType);
       if (cursor) params.set("cursor", cursor);
 
       const res = await fetch(`/api/content?${params.toString()}`);
@@ -174,16 +193,20 @@ export function ContentBrowser({
       setLoading(false);
       setLoadingMore(false);
     }
-  };
+  }, [appliedPaperFilters, boardId, chapterId, classId, resourceType, subjectId]);
 
   useEffect(() => {
     if (boardId && classId && subjectId) {
+      if (hasServerInitialData && !skippedServerInitialFetch.current) {
+        skippedServerInitialFetch.current = true;
+        return;
+      }
       fetchResources();
     } else {
       setResources([]);
       setNextCursor(null);
     }
-  }, [boardId, classId, subjectId, chapterId, examinationBoardId, paperYear, paperSession, paperType]);
+  }, [boardId, classId, subjectId, chapterId, resourceType, fetchResources, hasServerInitialData]);
 
   return (
     <div className="space-y-8 max-w-6xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
@@ -207,13 +230,17 @@ export function ContentBrowser({
           <div className="pt-4 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">Exam Board ID</label>
-              <input
-                type="text"
+              <select
                 value={examinationBoardId}
                 onChange={(e) => setExaminationBoardId(e.target.value)}
-                placeholder="e.g. fbise"
+                disabled={!boardId || examinationBoards.loading}
                 className="w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2 border"
-              />
+              >
+                <option value="">All examination boards</option>
+                {examinationBoards.data?.map((item) => (
+                  <option key={item.slug} value={item.slug}>{item.name}</option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">Paper Year</label>
@@ -244,6 +271,21 @@ export function ContentBrowser({
                 placeholder="e.g. subjective"
                 className="w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2 border"
               />
+            </div>
+            <div className="sm:col-span-2 lg:col-span-4 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setAppliedPaperFilters({
+                  examinationBoardId,
+                  paperYear,
+                  paperSession,
+                  paperType,
+                })}
+                disabled={!boardId || !classId || !subjectId}
+                className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                Apply paper filters
+              </button>
             </div>
           </div>
         )}

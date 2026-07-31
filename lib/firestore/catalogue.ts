@@ -1,6 +1,6 @@
 import { collection, query, where, orderBy, getDocs, QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 import { db } from '../firebase/client';
-import type { Board, ClassDoc, Subject, Chapter } from './types';
+import type { Board, ClassDoc, Subject, Chapter, ExaminationBoard } from './types';
 
 export async function getBoards(): Promise<Board[]> {
   const boardsRef = collection(db, 'boards');
@@ -16,6 +16,14 @@ export async function getClasses(boardId: string): Promise<ClassDoc[]> {
   const snapshot = await getDocs(q);
   
   return snapshot.docs.map((doc: QueryDocumentSnapshot<DocumentData>) => doc.data() as ClassDoc);
+}
+
+export async function getExaminationBoards(boardId: string): Promise<ExaminationBoard[]> {
+  const boardsRef = collection(db, `boards/${boardId}/examinationBoards`);
+  const q = query(boardsRef, where('active', '==', true), orderBy('display_order', 'asc'));
+  const snapshot = await getDocs(q);
+
+  return snapshot.docs.map((doc: QueryDocumentSnapshot<DocumentData>) => doc.data() as ExaminationBoard);
 }
 
 export async function getSubjects(boardId: string, classId: string): Promise<Subject[]> {

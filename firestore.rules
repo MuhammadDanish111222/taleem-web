@@ -62,6 +62,12 @@ service cloud.firestore {
     match /upload_transactions/{transactionId} {
       allow read, write: if false;
     }
+
+    // Student profiles and subscription state are available only through
+    // authenticated server routes. A client must never self-enable a subscription.
+    match /users/{userId} {
+      allow read, write: if false;
+    }
     
     // Default deny all client writes (Admin SDK bypasses this)
     // Default deny any reads not explicitly allowed above

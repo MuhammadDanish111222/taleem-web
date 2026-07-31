@@ -1,5 +1,11 @@
 import "server-only";
-import { getBoardServer, getClassServer, getSubjectServer, getChaptersServer } from "../../firestore/catalogue.server";
+import {
+  getBoardServer,
+  getClassServer,
+  getSubjectServer,
+  getChaptersServer,
+  getExaminationBoardServer,
+} from "../../firestore/catalogue.server";
 import { ResourceError } from "../../resources/errors";
 
 export async function validateCatalogueHierarchy(
@@ -31,5 +37,19 @@ export async function validateCatalogueHierarchy(
         throw new ResourceError("HIERARCHY_INACTIVE", `Chapter ${chapterId} does not exist or is inactive.`);
       }
     }
+  }
+}
+
+export async function validateExaminationBoard(
+  boardId: string,
+  examinationBoardId: string | null | undefined,
+): Promise<void> {
+  if (!examinationBoardId) return;
+  const examinationBoard = await getExaminationBoardServer(boardId, examinationBoardId);
+  if (!examinationBoard) {
+    throw new ResourceError(
+      "HIERARCHY_INACTIVE",
+      `Examination board ${examinationBoardId} does not exist or is inactive.`,
+    );
   }
 }

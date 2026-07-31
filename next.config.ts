@@ -2,6 +2,14 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
+  experimental: {
+    // Local admin uploads accept PDFs up to 150 MiB. The multipart envelope
+    // needs a little extra room, while the public deployment keeps Next's
+    // smaller default because these routes are disabled there.
+    ...(process.env.ADMIN_PANEL_ENABLED === "true"
+      ? { proxyClientMaxBodySize: "192mb" }
+      : {}),
+  },
   async headers() {
     return [
       {

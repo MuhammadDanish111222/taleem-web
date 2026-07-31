@@ -4,6 +4,7 @@ import { signInternalJwt } from '../internalAuth/signInternalJwt';
 export interface AiServiceOptions {
   requestId?: string;
   headers?: Record<string, string>;
+  accountTier?: "anonymous" | "google" | "premium";
 }
 
 export async function callAiService(
@@ -20,7 +21,13 @@ export async function callAiService(
     throw new Error('AI_SERVICE_INTERNAL_URL is not defined');
   }
 
-  const token = await signInternalJwt(uid, isAdmin, feature, options.requestId);
+  const token = await signInternalJwt(
+    uid,
+    isAdmin,
+    feature,
+    options.requestId,
+    options.accountTier,
+  );
   
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',

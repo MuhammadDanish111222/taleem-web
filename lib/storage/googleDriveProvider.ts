@@ -1,5 +1,6 @@
 import "server-only";
 import { drive_v3, google } from "googleapis";
+import { Readable } from "stream";
 import { StorageProvider, StorageUploadInput, StoredObjectMetadata, StorageRequestOptions, ByteRange, StorageReadResult, SafeImageMimeType, StorageImageReadResult } from "./StorageProvider";
 import { DriveConfig, getDriveConfig } from "./config";
 import { StorageError } from "./errors";
@@ -127,6 +128,11 @@ export class GoogleDriveProvider implements StorageProvider {
         metadata ??= await this.getMetadata(storageKey, options);
         return metadata;
       };
+      const trustedSize =
+        Number.isSafeInteger(options?.trustedSizeBytes) && (options?.trustedSizeBytes ?? 0) > 0
+          ? options!.trustedSizeBytes
+          : undefined;
+      const sizeForFallback = async () => trustedSize ?? (await metadataForFallback()).sizeBytes;
       if (contentRangeStr) {
         const match = contentRangeStr.match(/bytes (\d+)-(\d+)\/(\d+|\*)/);
         if (match) {
@@ -142,32 +148,138 @@ export class GoogleDriveProvider implements StorageProvider {
         // The live Google Drive API can return a 206 stream while the
         // googleapis client exposes no response headers. Derive the exact
         // range from trusted Drive metadata and our requested bounds instead.
-        const file = await metadataForFallback();
+        const sizeBytes = await sizeForFallback();
         const start = range?.start ?? 0;
-        const end = Math.min(range?.end ?? file.sizeBytes - 1, file.sizeBytes - 1);
-        if (file.sizeBytes <= 0 || start > end) {
+        const end = Math.min(range?.end ?? sizeBytes - 1, sizeBytes - 1);
+        if (sizeBytes <= 0 || start > end) {
           throw new StorageError("STORAGE_RANGE_INVALID", "Requested byte range is invalid");
         }
-        contentRange = { start, end, total: file.sizeBytes };
+        contentRange = { start, end, total: sizeBytes };
       }
 
-      const mimeType = res.headers["content-type"] || (await metadataForFallback()).mimeType;
+      // Public routes have already verified an immutable PDF resource version.
+      // When Drive omits media response headers, trustedSizeBytes lets us avoid
+      // an otherwise redundant metadata request while retaining the PDF-only
+      // contract. Other callers still perform Drive metadata validation.
+      const mimeType =
+        res.headers["content-type"]
+        || (trustedSize ? "application/pdf" : (await metadataForFallback()).mimeType);
       if (mimeType !== "application/pdf") {
         throw new StorageError("STORAGE_INVALID_METADATA", "MIME type is not application/pdf");
       }
 
       const contentLength = parseInt(res.headers["content-length"] || "", 10) ||
-        (contentRange ? contentRange.end - contentRange.start + 1 : (await metadataForFallback()).sizeBytes);
+        (contentRange ? contentRange.end - contentRange.start + 1 : await sizeForFallback());
 
       return {
         stream: res.data as NodeJS.ReadableStream,
         status: res.status === 206 ? 206 : 200,
         mimeType: "application/pdf",
         contentLength,
-        totalSize: contentRange ? contentRange.total : (await metadataForFallback()).sizeBytes,
+        totalSize: contentRange ? contentRange.total : await sizeForFallback(),
         contentRange,
       };
     }, this.config.maxAttempts, options?.signal);
+  }
+
+  /**
+   * Narrow local-admin-only capability for paired chapter imports.  It is
+   * deliberately separate from upload(): PDFs retain their existing contract.
+   * A SHA-256 content fingerprint is stored as a private Drive app property so
+   * a browser retry cannot create a second visual object.
+   */
+  async uploadPairedVisual(input: {
+    filename: string;
+    mimeType: SafeImageMimeType;
+    body: Buffer;
+    contentHash: string;
+    signal?: AbortSignal;
+  }): Promise<{ storageKey: string; created: boolean }> {
+    const allowed = new Set<SafeImageMimeType>(["image/png", "image/jpeg", "image/webp", "image/gif"]);
+    if (!allowed.has(input.mimeType) || !/^[a-f0-9]{64}$/.test(input.contentHash) || !input.body.length) {
+      throw new StorageError("STORAGE_INVALID_METADATA", "Invalid paired visual metadata");
+    }
+    const escapedHash = input.contentHash.replace(/'/g, "\\'");
+    const existing = await withBoundedRetry(async () => this.drive.files.list({
+      q: `'${this.config.contentFolderId.replace(/'/g, "\\'")}' in parents and trashed = false and appProperties has { key='taleem_paired_visual_sha256' and value='${escapedHash}' }`,
+      fields: "files(id,mimeType,driveId,trashed)",
+      pageSize: 2,
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
+    }, { signal: input.signal }), this.config.maxAttempts, input.signal);
+    const found = existing.data.files || [];
+    if (found.length > 1) throw new StorageError("STORAGE_INVALID_METADATA", "Paired visual idempotency conflict");
+    if (found.length === 1) {
+      const file = found[0];
+      if (!file.id || file.mimeType !== input.mimeType || file.trashed || (this.config.sharedDriveId && file.driveId && file.driveId !== this.config.sharedDriveId)) {
+        throw new StorageError("STORAGE_INVALID_METADATA", "Paired visual metadata invalid");
+      }
+      return { storageKey: file.id, created: false };
+    }
+    const result = await withBoundedRetry(async () => this.drive.files.create({
+      requestBody: {
+        name: input.filename,
+        parents: [this.config.contentFolderId],
+        appProperties: { taleem_paired_visual_sha256: input.contentHash },
+      },
+      // googleapis multipart uploads require a readable stream. Create it
+      // inside the retry callback so every attempt receives a fresh stream.
+      media: { mimeType: input.mimeType, body: Readable.from(input.body) },
+      fields: "id,mimeType,driveId,trashed",
+      supportsAllDrives: true,
+    }, { signal: input.signal }), this.config.maxAttempts, input.signal);
+    const file = result.data;
+    if (!file.id || file.mimeType !== input.mimeType || file.trashed || (this.config.sharedDriveId && file.driveId && file.driveId !== this.config.sharedDriveId)) {
+      throw new StorageError("STORAGE_INVALID_METADATA", "Paired visual upload validation failed");
+    }
+    return { storageKey: file.id, created: true };
+  }
+
+  /** Lists only importer-owned visual objects in the configured private folder. */
+  async listPairedVisuals(options?: StorageRequestOptions): Promise<Array<{ storageKey: string; createdAt: string }>> {
+    const objects: Array<{ storageKey: string; createdAt: string }> = [];
+    let pageToken: string | undefined;
+    do {
+      const page = await withBoundedRetry(async () => this.drive.files.list({
+        q: `'${this.config.contentFolderId.replace(/'/g, "\\'")}' in parents and trashed = false`,
+        fields: "nextPageToken,files(id,createdTime,appProperties,driveId,trashed)",
+        pageSize: 1000,
+        pageToken,
+        supportsAllDrives: true,
+        includeItemsFromAllDrives: true,
+      }, { signal: options?.signal }), this.config.maxAttempts, options?.signal);
+      for (const file of page.data.files || []) {
+        if (
+          !file.id
+          || !file.createdTime
+          || file.trashed
+          || !file.appProperties?.taleem_paired_visual_sha256
+          || (this.config.sharedDriveId && file.driveId && file.driveId !== this.config.sharedDriveId)
+        ) continue;
+        objects.push({ storageKey: file.id, createdAt: file.createdTime });
+      }
+      pageToken = page.data.nextPageToken || undefined;
+    } while (pageToken);
+    return objects;
+  }
+
+  /** Deletes only an object positively identified as importer-owned. */
+  async deletePairedVisual(storageKey: string, options?: StorageRequestOptions): Promise<void> {
+    const metadata = await withBoundedRetry(async () => this.drive.files.get({
+      fileId: storageKey,
+      fields: "id,appProperties,driveId,trashed",
+      supportsAllDrives: true,
+    }, { signal: options?.signal }), this.config.maxAttempts, options?.signal);
+    const file = metadata.data;
+    if (
+      !file.id
+      || file.trashed
+      || !file.appProperties?.taleem_paired_visual_sha256
+      || (this.config.sharedDriveId && file.driveId && file.driveId !== this.config.sharedDriveId)
+    ) {
+      throw new StorageError("STORAGE_INVALID_METADATA", "Object is not an importer-owned visual");
+    }
+    await this.delete(storageKey, options);
   }
 
   /** Local-admin visual streaming only.  PDF paths continue to use readRange. */
@@ -239,4 +351,16 @@ export class GoogleDriveProvider implements StorageProvider {
       canDownload: true,
     };
   }
+}
+
+let sharedProvider: GoogleDriveProvider | undefined;
+
+/**
+ * Reuses the Google auth client within a server process. In particular this
+ * preserves its short-lived access token instead of refreshing OAuth for every
+ * PDF range requested by the browser viewer.
+ */
+export function getSharedGoogleDriveProvider(): GoogleDriveProvider {
+  sharedProvider ??= new GoogleDriveProvider();
+  return sharedProvider;
 }

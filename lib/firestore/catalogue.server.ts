@@ -1,6 +1,6 @@
 import "server-only";
 import { getAdminFirestore } from "../firebase/admin";
-import { Board, ClassDoc, Subject, Chapter } from "./types";
+import { Board, ClassDoc, Subject, Chapter, ExaminationBoard } from "./types";
 import { cacheLife, cacheTag } from "next/cache";
 
 export async function getBoardServer(boardId: string): Promise<Board | null> {
@@ -43,6 +43,30 @@ export async function getClassServer(boardId: string, classId: string): Promise<
   const data = doc.data() as ClassDoc;
   if (!data.active) return null;
 
+  return {
+    name: data.name,
+    slug: data.slug,
+    active: data.active,
+    display_order: data.display_order,
+  };
+}
+
+export async function getExaminationBoardServer(
+  boardId: string,
+  examinationBoardId: string,
+): Promise<ExaminationBoard | null> {
+  "use cache";
+  cacheTag("catalogue");
+  cacheLife({ stale: 300, revalidate: 300, expire: 3600 });
+
+  const db = getAdminFirestore();
+  const doc = await db
+    .collection(`boards/${boardId}/examinationBoards`)
+    .doc(examinationBoardId)
+    .get();
+  if (!doc.exists) return null;
+  const data = doc.data() as ExaminationBoard;
+  if (!data.active) return null;
   return {
     name: data.name,
     slug: data.slug,

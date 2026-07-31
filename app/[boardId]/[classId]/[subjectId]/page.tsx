@@ -5,6 +5,7 @@ import {
   getSubjectServer, 
   getChaptersServer 
 } from "../../../../lib/firestore/catalogue.server";
+import Link from "next/link";
 
 type PageParams = Promise<{
   boardId: string;
@@ -47,8 +48,9 @@ export default async function SubjectPage({ params }: { params: PageParams }) {
           {chapters.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {chapters.map((chapter) => (
-                <div 
+                <Link
                   key={chapter.slug} 
+                  href={`/${boardId}/${classId}/${subjectId}/${chapter.slug}`}
                   className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow flex items-start space-x-4"
                 >
                   <div className="flex-shrink-0 w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center font-bold text-lg">
@@ -57,7 +59,7 @@ export default async function SubjectPage({ params }: { params: PageParams }) {
                   <div className="pt-1">
                     <h3 className="text-lg font-medium text-gray-900">{chapter.title}</h3>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           ) : (

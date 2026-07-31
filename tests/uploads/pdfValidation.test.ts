@@ -93,7 +93,7 @@ describe("PDF Validation", () => {
   });
 
   it("should reject an oversized file (413)", async () => {
-    const fileInfo = createMockFile(validPdfPath, true, 100 * 1024 * 1024); // 100MB, config max is 50MB
+    const fileInfo = createMockFile(validPdfPath, true, getUploadConfig().maxPdfBytes + 1);
     await expect(validatePdf(fileInfo)).rejects.toThrowError(
       new UploadError("PAYLOAD_TOO_LARGE", "File size exceeded limit")
     );

@@ -1,9 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
+import { connection, NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { searchPublicResources } from "@/lib/search/resourceSearch";
 import { ResourceError } from "@/lib/resources/errors";
 
 export async function GET(request: NextRequest) {
+  await connection();
   try {
     const searchParams = request.nextUrl.searchParams;
 
@@ -25,7 +26,13 @@ export async function GET(request: NextRequest) {
       limit,
     });
 
-    return NextResponse.json(results, { status: 200 });
+    return NextResponse.json(results, {
+      status: 200,
+      headers: {
+        "Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=600",
+        "X-Content-Type-Options": "nosniff",
+      },
+    });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

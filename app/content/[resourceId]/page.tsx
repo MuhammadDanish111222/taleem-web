@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { getResource } from "@/lib/repositories/firestore/resourceRepository";
+import { getPublishedResourceAccess } from "@/lib/resources/public";
 import { ResourceError } from "@/lib/resources/errors";
 import { PdfReader } from "@/components/content/PdfReader";
 
@@ -15,17 +15,12 @@ export default async function ResourceReaderPage({ params }: PageProps) {
 
   let resource;
   try {
-    resource = await getResource(resourceId);
+    resource = await getPublishedResourceAccess(resourceId);
   } catch (err) {
     if (err instanceof ResourceError && err.code === "NOT_FOUND") {
       notFound();
     }
     throw err;
-  }
-
-  // Publication status recheck invariant: non-published states 404 immediately
-  if (resource.status !== "published") {
-    notFound();
   }
 
   return (

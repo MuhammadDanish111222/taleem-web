@@ -85,6 +85,21 @@ describe('Firestore Security Rules', () => {
     await assertFails(setDoc(doc(authDb, 'boards/board1'), { active: true }));
   });
 
+  it('keeps student profiles private and server-managed', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'users/student1'), {
+        uid: 'student1',
+        subscriptionActive: false,
+      });
+    });
+    const studentDb = testEnv.authenticatedContext('student1').firestore();
+    await assertFails(getDoc(doc(studentDb, 'users/student1')));
+    await assertFails(setDoc(doc(studentDb, 'users/student1'), {
+      uid: 'student1',
+      subscriptionActive: true,
+    }));
+  });
+
   it('allows reading active examination boards when parent board is active', async () => {
     await testEnv.withSecurityRulesDisabled(async (context) => {
       const db = context.firestore();

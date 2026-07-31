@@ -28,6 +28,7 @@ describe('GoogleDriveProvider (Unit)', () => {
     mockDrive = {
       files: {
         create: vi.fn(),
+        list: vi.fn(),
         get: vi.fn(),
         delete: vi.fn(),
       }
@@ -144,6 +145,45 @@ describe('GoogleDriveProvider (Unit)', () => {
     );
   });
 
+  it('uploads a paired cropped visual only when its MIME and content hash are allowlisted', async () => {
+    mockDrive.files.list.mockResolvedValueOnce({ data: { files: [] } });
+    mockDrive.files.create.mockResolvedValueOnce({ data: { id: 'image1', mimeType: 'image/png', driveId: 'drive1', trashed: false } });
+    const result = await provider.uploadPairedVisual({ filename: 'paired.png', mimeType: 'image/png', body: Buffer.from('png'), contentHash: 'a'.repeat(64) });
+    expect(result).toEqual({ storageKey: 'image1', created: true });
+    expect(mockDrive.files.create).toHaveBeenCalledWith(expect.objectContaining({ requestBody: expect.objectContaining({ appProperties: { taleem_paired_visual_sha256: 'a'.repeat(64) } }) }), expect.anything());
+    const uploadBody = mockDrive.files.create.mock.calls[0][0].media.body;
+    expect(typeof uploadBody.pipe).toBe('function');
+  });
+
+  it('reuses the content-addressed visual on retry and rejects unsupported image MIME', async () => {
+    mockDrive.files.list.mockResolvedValueOnce({ data: { files: [{ id: 'image1', mimeType: 'image/png', driveId: 'drive1', trashed: false }] } });
+    await expect(provider.uploadPairedVisual({ filename: 'paired.png', mimeType: 'image/svg+xml' as any, body: Buffer.from('x'), contentHash: 'a'.repeat(64) })).rejects.toThrow(StorageError);
+    const result = await provider.uploadPairedVisual({ filename: 'paired.png', mimeType: 'image/png', body: Buffer.from('png'), contentHash: 'a'.repeat(64) });
+    expect(result.created).toBe(false); expect(mockDrive.files.create).not.toHaveBeenCalled();
+  });
+
+  it('lists only importer-owned paired visuals across pages', async () => {
+    mockDrive.files.list
+      .mockResolvedValueOnce({ data: { nextPageToken: 'next', files: [
+        { id: 'paired-1', createdTime: '2026-01-01T00:00:00Z', driveId: 'drive1', appProperties: { taleem_paired_visual_sha256: 'a'.repeat(64) } },
+        { id: 'ordinary-pdf', createdTime: '2026-01-01T00:00:00Z', driveId: 'drive1' },
+      ] } })
+      .mockResolvedValueOnce({ data: { files: [
+        { id: 'paired-2', createdTime: '2026-01-02T00:00:00Z', driveId: 'drive1', appProperties: { taleem_paired_visual_sha256: 'b'.repeat(64) } },
+      ] } });
+    await expect(provider.listPairedVisuals()).resolves.toEqual([
+      { storageKey: 'paired-1', createdAt: '2026-01-01T00:00:00Z' },
+      { storageKey: 'paired-2', createdAt: '2026-01-02T00:00:00Z' },
+    ]);
+    expect(mockDrive.files.list).toHaveBeenCalledTimes(2);
+  });
+
+  it('refuses to delete a file without the paired-import ownership marker', async () => {
+    mockDrive.files.get.mockResolvedValueOnce({ data: { id: 'ordinary-pdf', driveId: 'drive1' } });
+    await expect(provider.deletePairedVisual('ordinary-pdf')).rejects.toThrow(/not an importer-owned visual/);
+    expect(mockDrive.files.delete).not.toHaveBeenCalled();
+  });
+
   it('derives a partial range from trusted metadata when Drive omits response headers', async () => {
     mockDrive.files.get
       .mockResolvedValueOnce({ status: 206, headers: {}, data: {} as any })
@@ -156,6 +196,20 @@ describe('GoogleDriveProvider (Unit)', () => {
 
     expect(result.contentRange).toEqual({ start: 0, end: 4, total: 12 });
     expect(result.contentLength).toBe(5);
+  });
+
+  it('uses trusted immutable size without a second Drive metadata request', async () => {
+    mockDrive.files.get.mockResolvedValueOnce({ status: 206, headers: {}, data: {} as any });
+
+    const result = await provider.readRange(
+      'file1',
+      { start: 5, end: 9 },
+      { trustedSizeBytes: 12 },
+    );
+
+    expect(result.contentRange).toEqual({ start: 5, end: 9, total: 12 });
+    expect(result.contentLength).toBe(5);
+    expect(mockDrive.files.get).toHaveBeenCalledTimes(1);
   });
 
   it('streams an allowlisted image only after Drive metadata validation', async () => {

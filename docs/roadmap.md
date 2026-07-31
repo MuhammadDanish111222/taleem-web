@@ -1,13 +1,18 @@
 # Taleem AI Roadmap
 
+## Module 4: Ask a Question
+
+- [x] Run 1: public Ask/usage BFF, trusted identity/tier propagation, final typed contracts, production build and security verification.
+- [ ] Run 2 exit gate: the student Ask UI, local-only prompt/candidate/question-bank interfaces, and disposable-stack verification are complete. Real configuration, staging, deployment, push, and green CI remain required before this item may be checked.
+
 - [x] Phase 0: Initial Repository Setup
-- [ ] Phase 1: Authentication & User Management
+- [x] Phase 1: Authentication & User Management
   - [x] Phase 1A: Firebase Project, Authentication & Admin SDK Wiring
   - [x] Phase 1B: Firestore Catalogue Schema & Seed Script
   - [x] Phase 1C: Dynamic Board / Class / Subject / Chapter Selectors
   - [x] Phase 1D: Public Catalogue Pages & Dynamic Routing
   - [x] Phase 1E: Admin Panel Shell & Admin Authorization
-- [ ] Phase 2: Core Platform & Content Delivery
+- [x] Phase 2: Core Platform & Content Delivery
   - [x] Phase 2A: Resource Schema and Storage Provider
   - [x] Phase 2B: Secure Upload, Validation, OAuth2 Personal/Workspace Drive Storage, and Publishing Workflow
   - [x] Phase 2C: Content Browsing, Published-Only Reader & Byte-Range PDF Proxy
@@ -18,6 +23,7 @@
   - [x] Phase 3D: Pinned BGE embeddings and completeness checks for chunks and individual expected questions.
   - [x] Phase 3E: SQL-scoped dense, expected-question, and lexical retrieval with deterministic rank-only fusion.
   - [x] Phase 3F: Local-only RAG QA, draft editing, controlled visual previews, transactional activation, and rollback.
+  - [x] Phase 3F extension: Local-only paired JSONL + Visual Extracts DOCX chapter import with private Drive visuals and existing ingestion jobs.
 - [ ] Phase 4: Student Dashboard & Progress Tracking
 - [ ] Phase 5: Admin Panel
 - [ ] Phase 6: Assessments & Quizzes

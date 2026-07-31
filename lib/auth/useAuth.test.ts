@@ -3,7 +3,7 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useAuth } from './useAuth';
 import { auth } from '../firebase/client';
-import { signInAnonymously, linkWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { signInAnonymously, linkWithPopup, signInWithPopup } from 'firebase/auth';
 
 vi.mock('../firebase/client', () => ({
   auth: {
@@ -16,6 +16,7 @@ vi.mock('firebase/auth', () => {
   return {
     signInAnonymously: vi.fn(),
     linkWithPopup: vi.fn(),
+    signInWithPopup: vi.fn(),
     GoogleAuthProvider: class {}
   };
 });
@@ -25,21 +26,43 @@ describe('useAuth', () => {
     vi.clearAllMocks();
   });
 
-  it('signs in anonymously on first load if no user', async () => {
+  it('waits for the user to choose anonymous sign-in', async () => {
     let callback: any;
     (auth.onAuthStateChanged as any).mockImplementation((cb: any) => {
       callback = cb;
       return vi.fn(); // unsubscribe
     });
 
-    renderHook(() => useAuth());
+    const { result } = renderHook(() => useAuth());
     
     // Simulate no user
     await act(async () => {
       callback(null);
     });
 
+    expect(signInAnonymously).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await result.current.signInAnonymous();
+    });
+
     expect(signInAnonymously).toHaveBeenCalledWith(auth);
+  });
+
+  it('supports direct Google sign-in as the first choice', async () => {
+    let callback: any;
+    (auth.onAuthStateChanged as any).mockImplementation((cb: any) => {
+      callback = cb;
+      return vi.fn();
+    });
+    const { result } = renderHook(() => useAuth());
+    act(() => callback(null));
+
+    await act(async () => {
+      await result.current.signInGoogle();
+    });
+
+    expect(signInWithPopup).toHaveBeenCalledWith(auth, expect.anything());
   });
 
   it('sets user when auth state changes', async () => {

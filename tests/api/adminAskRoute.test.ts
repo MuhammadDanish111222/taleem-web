@@ -1,0 +1,150 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { NextRequest } from "next/server";
+import { POST } from "@/app/api/admin/ask/route";
+import { isAdminPanelEnabled } from "@/lib/config/adminPanel";
+import { requireAdminSession } from "@/lib/auth/session";
+import { validateAdminWriteRequest } from "@/lib/security/adminWrite";
+import { callAiService } from "@/lib/internalApi/callAiService";
+import { DomainError } from "@/lib/services/admin/catalogueService";
+
+vi.mock("@/lib/config/adminPanel", () => ({ isAdminPanelEnabled: vi.fn() }));
+vi.mock("@/lib/auth/session", () => ({ requireAdminSession: vi.fn() }));
+vi.mock("@/lib/security/adminWrite", () => ({ validateAdminWriteRequest: vi.fn() }));
+vi.mock("@/lib/internalApi/callAiService", () => ({ callAiService: vi.fn() }));
+
+function request(body: unknown, headers: Record<string, string> = {}) {
+  return new NextRequest("http://localhost/api/admin/ask", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "http://localhost", ...headers },
+    body: JSON.stringify(body),
+  });
+}
+
+describe("Module 4 local Ask admin BFF", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(isAdminPanelEnabled).mockReturnValue(true);
+    vi.mocked(requireAdminSession).mockResolvedValue({ uid: "admin-1", admin: true } as never);
+    vi.mocked(validateAdminWriteRequest).mockResolvedValue();
+    vi.mocked(callAiService).mockResolvedValue({ items: [] });
+  });
+
+  it("returns 404 before session, CSRF, parsing, or service work when disabled", async () => {
+    vi.mocked(isAdminPanelEnabled).mockReturnValue(false);
+    const req = request({ operation: "prompt_history" });
+    req.json = vi.fn();
+    const response = await POST(req);
+    expect(response.status).toBe(404);
+    expect(requireAdminSession).not.toHaveBeenCalled();
+    expect(validateAdminWriteRequest).not.toHaveBeenCalled();
+    expect(req.json).not.toHaveBeenCalled();
+    expect(callAiService).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["UNAUTHENTICATED", 401],
+    ["UNAUTHORIZED", 403],
+  ])("maps %s sessions without calling the service", async (reason, status) => {
+    vi.mocked(requireAdminSession).mockRejectedValue(new Error(reason));
+    const response = await POST(request({ operation: "candidate_list" }));
+    expect(response.status).toBe(status);
+    expect(validateAdminWriteRequest).not.toHaveBeenCalled();
+    expect(callAiService).not.toHaveBeenCalled();
+  });
+
+  it("rejects same-origin or CSRF failure before JSON parsing", async () => {
+    vi.mocked(validateAdminWriteRequest).mockRejectedValue(new DomainError("FORBIDDEN", "CSRF token mismatch"));
+    const req = request({ operation: "candidate_list" });
+    req.json = vi.fn();
+    const response = await POST(req);
+    expect(response.status).toBe(403);
+    expect(req.json).not.toHaveBeenCalled();
+    expect(callAiService).not.toHaveBeenCalled();
+  });
+
+  it("strictly rejects unsupported operations and extra fields", async () => {
+    const unsupported = await POST(request({ operation: "bank_delete" }));
+    const extra = await POST(request({ operation: "candidate_list", storage_key: "must-not-pass" }));
+    expect(unsupported.status).toBe(400);
+    expect(extra.status).toBe(400);
+    expect(callAiService).not.toHaveBeenCalled();
+  });
+
+  it("forwards only a validated operation with the signed local-admin feature", async () => {
+    const response = await POST(request(
+      { operation: "candidate_list", board_id: "punjab", subject_id: "physics", limit: 25 },
+      { "x-request-id": "browser-request-id" },
+    ));
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(callAiService).toHaveBeenCalledWith(
+      "/api/v1/internal/admin/ask",
+      "POST",
+      { operation: "candidate_list", board_id: "punjab", subject_id: "physics", limit: 25 },
+      "admin-1",
+      true,
+      "local_ask_admin",
+      { requestId: "browser-request-id" },
+    );
+  });
+
+  it.each([
+    { operation: "prompt_update_draft", prompt_id: "11111111-1111-4111-8111-111111111111", content: "Updated draft" },
+    {
+      operation: "candidate_list",
+      board_id: "punjab",
+      class_id: "class-9",
+      subject_id: "physics",
+      chapter_id: "motion",
+      answer_mode: "short",
+      answer_source: "syllabus_grounded",
+      source_feature: "single_question",
+      provider: "deepseek",
+      age_days: 30,
+      limit: 50,
+    },
+    { operation: "candidate_retention_preview" },
+    { operation: "bank_list", board_id: "punjab", answer_mode: "long", bank_source: "admin_authored", limit: 20 },
+    { operation: "bank_history", question_id: "22222222-2222-4222-8222-222222222222" },
+    { operation: "bank_archive", revision_id: "33333333-3333-4333-8333-333333333333", reason: "Superseded by corrected material" },
+    { operation: "bank_set_variation_active", variation_id: "44444444-4444-4444-8444-444444444444", active: false },
+    { operation: "bank_requeue_embedding", revision_id: "55555555-5555-4555-8555-555555555555" },
+  ] as const)("accepts and forwards the landed $operation contract", async (body) => {
+    const response = await POST(request(body));
+    expect(response.status).toBe(200);
+    expect(callAiService).toHaveBeenLastCalledWith(
+      "/api/v1/internal/admin/ask",
+      "POST",
+      body,
+      "admin-1",
+      true,
+      "local_ask_admin",
+      { requestId: undefined },
+    );
+  });
+
+  it.each([
+    { operation: "prompt_update_draft", content: "Missing prompt ID" },
+    { operation: "bank_history" },
+    { operation: "bank_archive", revision_id: "33333333-3333-4333-8333-333333333333" },
+    { operation: "bank_set_variation_active", variation_id: "44444444-4444-4444-8444-444444444444" },
+    { operation: "bank_requeue_embedding" },
+    { operation: "candidate_retention_cleanup", limit: 25 },
+  ])("rejects incomplete high-impact $operation requests at the BFF", async (body) => {
+    const response = await POST(request(body));
+    expect(response.status).toBe(400);
+    expect(callAiService).not.toHaveBeenCalled();
+  });
+
+  it("does not expose upstream error details", async () => {
+    const upstream = new Error("AI Service Error: secret prompt and provider key") as Error & { status: number };
+    upstream.status = 409;
+    vi.mocked(callAiService).mockRejectedValue(upstream);
+    const response = await POST(request({ operation: "candidate_list" }));
+    const text = await response.text();
+    expect(response.status).toBe(409);
+    expect(text).toContain("Admin operation rejected");
+    expect(text).not.toContain("secret prompt");
+    expect(text).not.toContain("provider key");
+  });
+});

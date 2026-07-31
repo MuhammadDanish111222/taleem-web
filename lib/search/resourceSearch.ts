@@ -4,6 +4,7 @@ import { getAdminFirestore } from "../firebase/admin";
 import { PublicResourceDto, Resource } from "../resources/types";
 import { validateCatalogueHierarchy } from "../services/catalogue/catalogueHierarchyService";
 import { tokenize } from "./normalize";
+import { cacheLife, cacheTag } from "next/cache";
 
 export const CANDIDATE_LIMIT = 50;
 
@@ -39,9 +40,16 @@ function toPublicDto(resource: Resource): PublicResourceDto {
   };
 }
 
-export async function searchPublicResources(input: SearchResourceQueryInput): Promise<{ data: PublicResourceDto[] }> {
-  const query = searchResourceQuerySchema.parse(input);
-
+async function searchPublicResourcesCached(query: SearchResourceQuery): Promise<{ data: PublicResourceDto[] }> {
+  "use cache";
+  if (process.env.NODE_ENV !== "test") {
+    cacheTag(
+      "resources",
+      "catalogue",
+      `resources:${query.boardId}:${query.classId}:${query.subjectId ?? "*"}`,
+    );
+    cacheLife({ stale: 300, revalidate: 300, expire: 1800 });
+  }
   // Validate hierarchy (board + class mandatory, subject optional)
   await validateCatalogueHierarchy(query.boardId, query.classId, query.subjectId ?? null);
 
@@ -142,4 +150,8 @@ export async function searchPublicResources(input: SearchResourceQueryInput): Pr
   return {
     data: sliced.map((item) => toPublicDto(item.resource)),
   };
+}
+
+export async function searchPublicResources(input: SearchResourceQueryInput): Promise<{ data: PublicResourceDto[] }> {
+  return searchPublicResourcesCached(searchResourceQuerySchema.parse(input));
 }

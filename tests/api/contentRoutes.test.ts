@@ -3,8 +3,7 @@ import { GET as getContentList } from "../../app/api/content/route";
 import { GET as getPreview } from "../../app/api/content/[resourceId]/preview/route";
 import { GET as getDownload } from "../../app/api/content/[resourceId]/download/route";
 import { NextRequest } from "next/server";
-import { getResource, getResourceVersion } from "../../lib/repositories/firestore/resourceRepository";
-import { listPublicResources } from "../../lib/resources/public";
+import { getPublishedResourceAccess, listPublicResources } from "../../lib/resources/public";
 import { GoogleDriveProvider } from "../../lib/storage/googleDriveProvider";
 import { ResourceError } from "../../lib/resources/errors";
 import { Readable } from "stream";
@@ -16,34 +15,39 @@ vi.mock("../../lib/repositories/firestore/resourceRepository", () => ({
 
 vi.mock("../../lib/resources/public", () => ({
   listPublicResources: vi.fn(),
+  getPublishedResourceAccess: vi.fn(),
 }));
 
 vi.mock("../../lib/storage/googleDriveProvider", () => {
+  const provider = {
+    readRange: vi.fn().mockImplementation(async (_key: string, range?: any) => {
+      const totalSize = 10000;
+      let start = 0;
+      let end = totalSize - 1;
+
+      if (range) {
+        start = range.start;
+        end = range.end !== undefined ? range.end : totalSize - 1;
+      }
+
+      const contentLength = end - start + 1;
+      const dummyStream = Readable.from(Buffer.alloc(contentLength));
+
+      return {
+        stream: dummyStream,
+        status: range ? 206 : 200,
+        mimeType: "application/pdf",
+        contentLength,
+        totalSize,
+        contentRange: range ? { start, end, total: totalSize } : undefined,
+      };
+    }),
+  };
   return {
     GoogleDriveProvider: class MockGoogleDriveProvider {
-      readRange = vi.fn().mockImplementation(async (_key: string, range?: any) => {
-        const totalSize = 10000;
-        let start = 0;
-        let end = totalSize - 1;
-
-        if (range) {
-          start = range.start;
-          end = range.end !== undefined ? range.end : totalSize - 1;
-        }
-
-        const contentLength = end - start + 1;
-        const dummyStream = Readable.from(Buffer.alloc(contentLength));
-
-        return {
-          stream: dummyStream,
-          status: range ? 206 : 200,
-          mimeType: "application/pdf",
-          contentLength,
-          totalSize,
-          contentRange: range ? { start, end, total: totalSize } : undefined,
-        };
-      });
+      readRange = provider.readRange;
     },
+    getSharedGoogleDriveProvider: () => provider,
   };
 });
 
@@ -79,6 +83,17 @@ describe("Content Routes API", () => {
     providerRevision: "rev-1",
     pageCount: 50,
   };
+  const mockAccess = {
+    id: mockPublishedResource.id,
+    type: mockPublishedResource.type,
+    title: mockPublishedResource.title,
+    boardId: mockPublishedResource.boardId,
+    currentVersionId: mockPublishedResource.currentVersionId,
+    storageKey: mockVersion.storageKey,
+    originalFilename: mockVersion.originalFilename,
+    sizeBytes: mockVersion.sizeBytes,
+    sha256: mockVersion.sha256,
+  };
 
   describe("GET /api/content (Public List API)", () => {
     it("should return 200 OK with list response and nosniff headers", async () => {
@@ -110,7 +125,9 @@ describe("Content Routes API", () => {
 
       expect(res.status).toBe(200);
       expect(res.headers.get("X-Content-Type-Options")).toBe("nosniff");
-      expect(res.headers.get("Cache-Control")).toBe("private, no-cache, must-revalidate");
+      expect(res.headers.get("Cache-Control")).toBe(
+        "public, max-age=60, s-maxage=300, stale-while-revalidate=600",
+      );
 
       const body = await res.json();
       expect(body.data).toHaveLength(1);
@@ -133,8 +150,7 @@ describe("Content Routes API", () => {
 
   describe("GET /api/content/[resourceId]/preview (PDF Preview Proxy)", () => {
     it("should return 200 OK full stream when no Range header is provided", async () => {
-      vi.mocked(getResource).mockResolvedValueOnce(mockPublishedResource as any);
-      vi.mocked(getResourceVersion).mockResolvedValueOnce(mockVersion as any);
+      vi.mocked(getPublishedResourceAccess).mockResolvedValueOnce(mockAccess as any);
 
       const req = new NextRequest("http://localhost/api/content/res-pub-1/preview");
       const params = Promise.resolve({ resourceId: "res-pub-1" });
@@ -151,8 +167,7 @@ describe("Content Routes API", () => {
     });
 
     it("should return 206 Partial Content for a valid Range header (bytes=0-1023)", async () => {
-      vi.mocked(getResource).mockResolvedValueOnce(mockPublishedResource as any);
-      vi.mocked(getResourceVersion).mockResolvedValueOnce(mockVersion as any);
+      vi.mocked(getPublishedResourceAccess).mockResolvedValueOnce(mockAccess as any);
 
       const req = new NextRequest("http://localhost/api/content/res-pub-1/preview", {
         headers: { range: "bytes=0-1023" },
@@ -167,8 +182,7 @@ describe("Content Routes API", () => {
     });
 
     it("should return 206 Partial Content for suffix Range header (bytes=-500)", async () => {
-      vi.mocked(getResource).mockResolvedValueOnce(mockPublishedResource as any);
-      vi.mocked(getResourceVersion).mockResolvedValueOnce(mockVersion as any);
+      vi.mocked(getPublishedResourceAccess).mockResolvedValueOnce(mockAccess as any);
 
       const req = new NextRequest("http://localhost/api/content/res-pub-1/preview", {
         headers: { range: "bytes=-500" },
@@ -183,8 +197,7 @@ describe("Content Routes API", () => {
     });
 
     it("should clamp end range bound when end >= sizeBytes (bytes=0-9999999)", async () => {
-      vi.mocked(getResource).mockResolvedValueOnce(mockPublishedResource as any);
-      vi.mocked(getResourceVersion).mockResolvedValueOnce(mockVersion as any);
+      vi.mocked(getPublishedResourceAccess).mockResolvedValueOnce(mockAccess as any);
 
       const req = new NextRequest("http://localhost/api/content/res-pub-1/preview", {
         headers: { range: "bytes=0-9999999" },
@@ -199,8 +212,7 @@ describe("Content Routes API", () => {
     });
 
     it("should fall back to 200 OK full file for syntactically malformed Range header (bytes=invalid-syntax)", async () => {
-      vi.mocked(getResource).mockResolvedValueOnce(mockPublishedResource as any);
-      vi.mocked(getResourceVersion).mockResolvedValueOnce(mockVersion as any);
+      vi.mocked(getPublishedResourceAccess).mockResolvedValueOnce(mockAccess as any);
 
       const req = new NextRequest("http://localhost/api/content/res-pub-1/preview", {
         headers: { range: "bytes=invalid-syntax" },
@@ -214,8 +226,7 @@ describe("Content Routes API", () => {
     });
 
     it("should return 416 Range Not Satisfiable for unsatisfiable range (bytes=999999-)", async () => {
-      vi.mocked(getResource).mockResolvedValueOnce(mockPublishedResource as any);
-      vi.mocked(getResourceVersion).mockResolvedValueOnce(mockVersion as any);
+      vi.mocked(getPublishedResourceAccess).mockResolvedValueOnce(mockAccess as any);
 
       const req = new NextRequest("http://localhost/api/content/res-pub-1/preview", {
         headers: { range: "bytes=999999-" },
@@ -229,8 +240,7 @@ describe("Content Routes API", () => {
     });
 
     it("should return 304 Not Modified when If-None-Match matches version sha256 ETag", async () => {
-      vi.mocked(getResource).mockResolvedValueOnce(mockPublishedResource as any);
-      vi.mocked(getResourceVersion).mockResolvedValueOnce(mockVersion as any);
+      vi.mocked(getPublishedResourceAccess).mockResolvedValueOnce(mockAccess as any);
 
       const req = new NextRequest("http://localhost/api/content/res-pub-1/preview", {
         headers: { "if-none-match": `"${mockVersion.sha256}"` },
@@ -244,10 +254,9 @@ describe("Content Routes API", () => {
     });
 
     it("should return 404 for draft, hidden, or archived resources", async () => {
-      vi.mocked(getResource).mockResolvedValueOnce({
-        ...mockPublishedResource,
-        status: "hidden",
-      } as any);
+      vi.mocked(getPublishedResourceAccess).mockRejectedValueOnce(
+        new ResourceError("NOT_FOUND", "Published resource not found"),
+      );
 
       const req = new NextRequest("http://localhost/api/content/res-pub-1/preview");
       const params = Promise.resolve({ resourceId: "res-pub-1" });
@@ -259,8 +268,7 @@ describe("Content Routes API", () => {
 
   describe("GET /api/content/[resourceId]/download (Attachment Download Route)", () => {
     it("should return 200 OK with attachment disposition and safe filename", async () => {
-      vi.mocked(getResource).mockResolvedValueOnce(mockPublishedResource as any);
-      vi.mocked(getResourceVersion).mockResolvedValueOnce(mockVersion as any);
+      vi.mocked(getPublishedResourceAccess).mockResolvedValueOnce(mockAccess as any);
 
       const req = new NextRequest("http://localhost/api/content/res-pub-1/download");
       const params = Promise.resolve({ resourceId: "res-pub-1" });
@@ -272,13 +280,44 @@ describe("Content Routes API", () => {
       expect(res.headers.get("Content-Disposition")).toContain('attachment; filename="physics_grade9.pdf"');
       expect(res.headers.get("X-Content-Type-Options")).toBe("nosniff");
       expect(res.headers.get("Cache-Control")).toBe("private, no-cache, must-revalidate");
+      expect(res.headers.get("Accept-Ranges")).toBe("bytes");
+      expect(res.headers.get("ETag")).toBe(`"${mockVersion.sha256}"`);
+    });
+
+    it("should return resumable 206 content for a valid download range", async () => {
+      vi.mocked(getPublishedResourceAccess).mockResolvedValueOnce(mockAccess as any);
+
+      const req = new NextRequest("http://localhost/api/content/res-pub-1/download", {
+        headers: { range: "bytes=4096-8191" },
+      });
+      const params = Promise.resolve({ resourceId: "res-pub-1" });
+
+      const res = await getDownload(req, { params });
+
+      expect(res.status).toBe(206);
+      expect(res.headers.get("Content-Range")).toBe("bytes 4096-8191/10000");
+      expect(res.headers.get("Content-Length")).toBe("4096");
+      expect(res.headers.get("Content-Disposition")).toContain("attachment;");
+    });
+
+    it("should return 416 for a download range beyond the file", async () => {
+      vi.mocked(getPublishedResourceAccess).mockResolvedValueOnce(mockAccess as any);
+
+      const req = new NextRequest("http://localhost/api/content/res-pub-1/download", {
+        headers: { range: "bytes=20000-" },
+      });
+      const params = Promise.resolve({ resourceId: "res-pub-1" });
+
+      const res = await getDownload(req, { params });
+
+      expect(res.status).toBe(416);
+      expect(res.headers.get("Content-Range")).toBe("bytes */10000");
     });
 
     it("should return 404 if resource status is not published", async () => {
-      vi.mocked(getResource).mockResolvedValueOnce({
-        ...mockPublishedResource,
-        status: "archived",
-      } as any);
+      vi.mocked(getPublishedResourceAccess).mockRejectedValueOnce(
+        new ResourceError("NOT_FOUND", "Published resource not found"),
+      );
 
       const req = new NextRequest("http://localhost/api/content/res-pub-1/download");
       const params = Promise.resolve({ resourceId: "res-pub-1" });

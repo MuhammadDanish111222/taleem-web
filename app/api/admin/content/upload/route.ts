@@ -9,6 +9,7 @@ import { UploadError } from "@/lib/uploads/errors";
 import { getUploadConfig } from "@/lib/uploads/config";
 import { v4 as uuidv4 } from "uuid";
 import { validateAdminWriteRequest } from "@/lib/security/adminWrite";
+import { revalidateTag } from "next/cache";
 
 function mapErrorToResponse(error: unknown) {
   if (error instanceof UploadError) {
@@ -77,7 +78,10 @@ export async function POST(request: NextRequest) {
     if (contentLengthStr) {
       const contentLength = parseInt(contentLengthStr, 10);
       if (contentLength > config.maxMultipartBytes) {
-        throw new UploadError("PAYLOAD_TOO_LARGE", "Content-Length exceeds maximum allowed payload size");
+        throw new UploadError(
+          "PAYLOAD_TOO_LARGE",
+          `PDF upload is too large. The maximum PDF size is ${Math.floor(config.maxPdfBytes / 1024 / 1024)} MB.`,
+        );
       }
     }
 
@@ -107,6 +111,14 @@ export async function POST(request: NextRequest) {
     }
 
     const status = result.replayed ? 200 : 201;
+    revalidateTag("resources", { expire: 0 });
+    revalidateTag(
+      `resources:${parseResult.fields.boardId}:${parseResult.fields.classId}:${parseResult.fields.subjectId}`,
+      { expire: 0 },
+    );
+    if (result.resourceId) {
+      revalidateTag(`resource:${result.resourceId}`, { expire: 0 });
+    }
     return NextResponse.json({ ...result, requestId }, { status });
 
   } catch (error) {

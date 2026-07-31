@@ -16,6 +16,12 @@ export interface ByteRange {
 export interface StorageRequestOptions {
   signal?: AbortSignal;
   requestId?: string;
+  /**
+   * Size already verified from the immutable resource-version record. Public
+   * content routes pass this so missing Google response headers do not cause a
+   * second Drive metadata request for every PDF range.
+   */
+  trustedSizeBytes?: number;
 }
 
 export interface StoredObjectMetadata {

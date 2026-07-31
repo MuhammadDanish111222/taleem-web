@@ -19,7 +19,13 @@ describe('signInternalJwt', () => {
   });
 
   it('mints a valid RS256 JWT with all mandatory claims and 60s expiration', async () => {
-    const token = await signInternalJwt('user-123', true, 'ingestion', 'req-999');
+    const token = await signInternalJwt(
+      'user-123',
+      true,
+      'ingestion',
+      'req-999',
+      'premium',
+    );
     expect(token).toBeTypeOf('string');
 
     const header = decodeProtectedHeader(token);
@@ -31,6 +37,7 @@ describe('signInternalJwt', () => {
     expect(payload.admin).toBe(true);
     expect(payload.feature).toBe('ingestion');
     expect(payload.request_id).toBe('req-999');
+    expect(payload.account_tier).toBe('premium');
     expect(payload.aud).toBe('taleem-ai-service');
     expect(payload.iss).toBe('taleem-web');
     expect(payload.jti).toBeDefined();

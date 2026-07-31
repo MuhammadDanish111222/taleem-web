@@ -8,7 +8,7 @@ import { CatalogueMutation } from "@/lib/validation/catalogue";
 
 interface CatalogueItemFormProps {
   initialData?: any; // If present, mode is edit, otherwise create
-  level: "board" | "class" | "subject" | "chapter";
+  level: "board" | "examinationBoard" | "class" | "subject" | "chapter";
   parentIds: { boardId?: string; classId?: string; subjectId?: string };
   onClose: () => void;
   onSuccess: () => void;
@@ -45,17 +45,19 @@ export default function CatalogueItemForm({ initialData, level, parentIds, onClo
 
       if (!isEdit) {
          if (level === "board") mutation.boardId = formData.slug;
+         if (level === "examinationBoard") mutation.examinationBoardId = formData.slug;
          if (level === "class") mutation.classId = formData.slug;
          if (level === "subject") mutation.subjectId = formData.slug;
          if (level === "chapter") mutation.chapterId = formData.slug;
       } else {
          if (level === "board") mutation.boardId = initialData.slug;
+         if (level === "examinationBoard") mutation.examinationBoardId = initialData.slug;
          if (level === "class") mutation.classId = initialData.slug;
          if (level === "subject") mutation.subjectId = initialData.slug;
          if (level === "chapter") mutation.chapterId = initialData.slug;
       }
 
-      if (level === "board" || level === "class") {
+      if (level === "board" || level === "examinationBoard" || level === "class") {
         mutation.name = formData.name;
       } else if (level === "subject") {
         mutation.name = formData.name;
@@ -109,7 +111,7 @@ export default function CatalogueItemForm({ initialData, level, parentIds, onClo
             {!isEdit && <p className="text-xs text-gray-500 mt-1">Cannot be changed after creation.</p>}
           </div>
 
-          {(level === "board" || level === "class" || level === "subject") && (
+          {(level === "board" || level === "examinationBoard" || level === "class" || level === "subject") && (
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Name

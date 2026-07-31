@@ -6,10 +6,29 @@ import { ResourceError } from "@/lib/resources/errors";
 import { revalidateTag } from "next/cache";
 import { z } from "zod";
 import { validateAdminWriteRequest } from "@/lib/security/adminWrite";
+import { getAdminResourceDetail } from "@/lib/services/admin/adminContentService";
 
 const mutationSchema = z.object({
   action: z.enum(["publish", "hide", "archive", "restore"]),
 });
+
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    await requireAdminSession();
+    const detail = await getAdminResourceDetail((await params).id);
+    if (!detail) {
+      return NextResponse.json({ error: "Resource not found" }, { status: 404 });
+    }
+    return NextResponse.json(detail, {
+      headers: { "Cache-Control": "private, no-store" },
+    });
+  } catch (error) {
+    return mapErrorToResponse(error);
+  }
+}
 
 function mapErrorToResponse(error: unknown) {
   if (error instanceof ResourceError) {
@@ -77,12 +96,12 @@ export async function POST(
     }
 
     // Invalidate public caches for this resource scope
-    // @ts-ignore: Next.js 16+ type signature workaround
-    revalidateTag("resources");
-    // @ts-ignore
-    revalidateTag(`resources:${resource.boardId}:${resource.classId}:${resource.subjectId}`);
-    // @ts-ignore
-    revalidateTag(`resource:${resourceId}`);
+    revalidateTag("resources", { expire: 0 });
+    revalidateTag(
+      `resources:${resource.boardId}:${resource.classId}:${resource.subjectId}`,
+      { expire: 0 },
+    );
+    revalidateTag(`resource:${resourceId}`, { expire: 0 });
 
     return NextResponse.json({ success: true, resource }, { status: 200 });
   } catch (error) {

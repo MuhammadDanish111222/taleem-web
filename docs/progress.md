@@ -2,6 +2,24 @@
 
 This document serves as a persistent record of the progress made across different phases of the Taleem AI project. 
 
+## Module 4 — Ask a Question, Run 2 local delivery
+
+- **Status:** Student and local-admin implementation plus disposable-stack browser verification are complete; the Module 4 exit gate is still open.
+- **Student Ask:** `/ai/ask` reuses the catalogue hierarchy, accepts typed English text only, offers short/long modes with internal `exam_style`, generates operation UUIDs correctly, keeps one cancellable request in flight, prevents stale replacement, loads usage once, updates it from responses, and never polls.
+- **Rendering:** Approved, textbook-grounded, and the exact “General AI answer — not verified from your selected textbook.” states are distinct. Validated structured blocks preserve equation and reviewed-visual positions. Raw HTML and arbitrary URLs are disabled; visuals use the protected same-origin route.
+- **Local administration:** Prompt history/draft/edit/test/activate/rollback, candidate filters/inspection/approve/reject/retention preview, and approved-bank create/import/history/archive/variation/embedding/visual-link operations reuse the existing local-only security boundary.
+- **Browser evidence:** With the admin gate disabled, public admin pages return 404. With the local gate enabled, six default prompts loaded, retention preview returned zero, an admin-authored disposable approved revision was created, and a later exact student Ask reused it with the approved label, one quota reservation, and zero provider attempts. Anonymous requests consumed five reservations and the sixth was blocked with the required owner-directed message.
+- **Local verification:** The merged focused Ask/admin suite passed `57` tests. The complete Firestore-emulator-aware suite passed `276` tests with one intentionally gated live Google Drive smoke test skipped. Lint, typecheck, the production build with `ADMIN_PANEL_ENABLED=false`, public-admin 404 checks, and the browser-bundle secret scan passed.
+- **Support setting:** The WhatsApp action remains hidden because `academy_settings/default` is not configured in the real Firestore project. The owner's phone/default message remains pending; no number was invented.
+- **Remaining exit work:** Real migration/configuration/deployment/staging, support configuration, commit/push, and green CI are still required. No production completion claim is made.
+
+## Module 4 — Ask a Question, Run 1 of 2
+
+- **Status:** Public BFF and final typed contracts implemented and verified; Module 4 is not complete.
+- **Implemented:** Same-origin JSON-only Ask/usage routes, Firebase bearer verification, one trusted profile read, account-tier internal claim, explicit camel/snake mapping, strict response validation, stable sanitized errors, no-store caching, canonical `AI_SERVICE_INTERNAL_URL`, and expanded client-bundle leak scanning.
+- **Verification:** Focused BFF/auth tests passed (`18`), real HTTP BFF-to-FastAPI tests passed (`2`), the complete emulator-aware web suite passed (`230` with one intentionally gated live Drive smoke test skipped), and lint, typecheck, production build, and bundle scan passed.
+- **Run 2:** Build the student Ask experience and local-only prompt/candidate/bank admin interfaces, configure real service secrets, deploy/stage, and complete final documentation. Run 1 performed no deployment, real paid provider call, commit, or push.
+
 ## Phase 0: Initial Setup
 - **Status:** Completed
 - **Details:** Initialized a Next.js 14+ App Router project. Configured TailwindCSS, TypeScript, and basic repository structures for the web application (`taleem-web`).
@@ -168,4 +186,28 @@ This document serves as a persistent record of the progress made across differen
 - **Details:** The local admin panel supports structured corpus inspection, job status, named-version QA, draft-only expected-question and visual editing, audit viewing, QA approval, activation, and rollback. Visuals remain Google Drive assets; only approved title/description metadata affects the parent chunk embedding.
 - **Security:** RAG administration and image preview are gated locally before authentication, parsing, or internal service calls. Writes require an admin session, Origin, CSRF, and a signed internal admin JWT. Browser responses never include vectors, Drive keys, provider details, or direct URLs.
 - **Verification:** Fresh PostgreSQL 17 + pgvector migrations, scoped Supabase rollback integration tests, the complete `105`-test service suite, and the emulator-aware `55`-test web suite passed.
+
+## Phase 3F extension: Paired JSONL + Visual Extracts DOCX Import
+
+- **Status:** Completed.
+- **Details:** Added the protected local-admin paired chapter importer. It validates external JSONL visual associations against Visual Extracts DOCX metadata cards, resolves and crops Word images, uploads only referenced cropped visuals privately to Google Drive, enriches JSONL internally, and queues the existing local-only JSONL/embedding pipeline. Unused DOCX visuals are reported without upload; imported visuals remain `pending` review with `llm_decide` as their eventual display policy.
+- **Safety:** The route is unavailable on Vercel, requires the existing admin/session/Origin/CSRF/JWT controls, and never exposes or audits Drive IDs/keys/URLs, uploaded bytes, source JSONL, or enriched JSONL. No paid LLM/OCR/vision API is involved. A matching active Firebase board/class/subject/chapter is an explicit precondition for a real import.
+- **Verification:** Controlled parser/BFF/Drive tests (`35`), TypeScript typecheck, and read-only preflight of the supplied Chemistry pair (nine visual cards) passed. No educational data was uploaded, queued, activated, or added to Firestore during verification.
+
+## Student user profiles and subscription administration
+
+- **Status:** Completed.
+- **Details:** Added explicit first-visit Anonymous/Google choice, private `users/{uid}` Firestore profiles, a single server-controlled `subscriptionActive` field, and `/admin/users` listing/toggle controls. No chat history collection exists.
+- **Cost control:** Profile synchronization is deduplicated per browser-tab session and performs no update for an unchanged existing profile.
+- **Security:** Direct Firestore profile reads and writes are denied. Self-profile creation requires a verified Firebase ID token; subscription changes require an admin session, Origin and CSRF validation, and generate an audit record.
+- **Verification:** Focused authentication/API tests passed (`11`), user-service emulator tests passed (`3`), Firestore rule tests passed (`13`), TypeScript typecheck passed, and lint reported no new errors.
+
+## Post-Module 3 platform hardening
+
+- **Status:** Completed.
+- **Admin content:** `/admin/content` provides catalogue dropdowns, bounded private PDF upload, draft review, publish/hide/archive/restore controls, and immutable version history. Local textbook uploads support PDFs up to 150 MiB; clear file-size and draft/publication feedback prevents silent failures.
+- **Student content:** Books, notes, and past papers are linked from the homepage, filtered by active catalogue scope, and available through protected online reading and download routes only while published.
+- **Cost and speed:** Catalogue queries, published content lists, title search, published reader/version resolution, and active RAG version configuration use bounded shared caches. Content mutations invalidate narrow Next.js tags immediately; RAG activation/rollback invalidates the hashed Redis scope key after commit. Student profile synchronization is at most once per user per tab session and unchanged profiles are not rewritten.
+- **RAG operations:** Paired imports detect identical in-progress/succeeded chapter submissions, reuse content-addressed Drive visuals, automatically use an editable corpus snapshot, and provide a preview-first cleanup for importer-owned visuals that are unreferenced and older than 24 hours.
+- **Live verification:** Real Firebase contains the active Punjab catalogue, student profiles, and a published Chemistry book. Its Google Drive PDF is available through byte-range preview. Real Supabase retains one complete active Punjab/9/Chemistry corpus with 19/19 chunk embeddings and 94/94 expected-question embeddings.
 

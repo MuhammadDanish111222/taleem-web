@@ -83,9 +83,9 @@ describe("Admin Content Mutation Route POST /api/admin/content/[id]", () => {
 
     // Verify all 3 tags were revalidated with values from mock resource
     expect(revalidateTag).toHaveBeenCalledTimes(3);
-    expect(revalidateTag).toHaveBeenNthCalledWith(1, "resources");
-    expect(revalidateTag).toHaveBeenNthCalledWith(2, "resources:fbise:class-9:physics");
-    expect(revalidateTag).toHaveBeenNthCalledWith(3, "resource:res-123");
+    expect(revalidateTag).toHaveBeenNthCalledWith(1, "resources", { expire: 0 });
+    expect(revalidateTag).toHaveBeenNthCalledWith(2, "resources:fbise:class-9:physics", { expire: 0 });
+    expect(revalidateTag).toHaveBeenNthCalledWith(3, "resource:res-123", { expire: 0 });
   });
 
   it("should reject non-admin requests (401) BEFORE calling resourceService or revalidateTag", async () => {

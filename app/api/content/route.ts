@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(result, {
       status: 200,
       headers: {
-        "Cache-Control": "private, no-cache, must-revalidate",
+        "Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=600",
         "X-Content-Type-Options": "nosniff",
       },
     });

@@ -31,4 +31,18 @@ export const uploadMetadataSchema = z.object({
       path: ["resourceId"],
     });
   }
+  if (data.type === "past_paper") {
+    if (!data.examinationBoardId?.trim()) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Examination board is required for a past paper", path: ["examinationBoardId"] });
+    }
+    if (!data.paperYear || data.paperYear < 1900 || data.paperYear > 2100) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "A valid paper year is required", path: ["paperYear"] });
+    }
+    if (!data.paperSession?.trim()) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Paper session is required", path: ["paperSession"] });
+    }
+    if (!data.paperType?.trim()) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Paper type is required", path: ["paperType"] });
+    }
+  }
 });

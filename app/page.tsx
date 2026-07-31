@@ -1,4 +1,5 @@
 import CatalogueHero from "../components/catalogue/CatalogueHero";
+import Link from "next/link";
 
 export default function Home() {
   return (
@@ -15,12 +16,22 @@ export default function Home() {
           <CatalogueHero />
         </section>
 
-        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pt-12">
-          {["Books", "Notes", "Past Papers", "AI Tools"].map((title) => (
-            <div key={title} className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center space-y-2 opacity-75">
-              <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
-              <span className="text-xs font-medium bg-blue-100 text-blue-800 px-2 py-1 rounded-full">Upcoming</span>
-            </div>
+        <section className="grid grid-cols-1 gap-6 pt-12 md:grid-cols-2 lg:grid-cols-4">
+          {[
+            { title: "Books", href: "/books", description: "Read and download published textbooks." },
+            { title: "Notes", href: "/notes", description: "Find chapter notes and revision material." },
+            { title: "Past Papers", href: "/past-papers", description: "Practice published examination papers." },
+            { title: "Single Ask", href: "/ai/ask", description: "Type one study question and get a clearly sourced answer." },
+          ].map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 hover:border-blue-300 hover:shadow-md transition flex flex-col text-center space-y-2"
+            >
+              <h3 className="text-lg font-semibold text-gray-800">{item.title}</h3>
+              <p className="text-sm text-gray-500">{item.description}</p>
+              <span className="text-sm font-semibold text-blue-600">Open →</span>
+            </Link>
           ))}
         </section>
       </div>

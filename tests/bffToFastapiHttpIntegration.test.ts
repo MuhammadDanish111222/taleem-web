@@ -67,10 +67,10 @@ describe('Genuine HTTP Integration Test (BFF Helper & Next.js AI Probe Route -> 
     serverProcess.stdin?.write(publicKeyPem);
     serverProcess.stdin?.end();
 
-    // Wait for FastAPI server to start listening (up to 10s)
+    // Allow a cold Python/FastAPI import on slower Windows runners.
     let started = false;
     let actualPort = port;
-    for (let i = 0; i < 50; i++) {
+    for (let i = 0; i < 100; i++) {
       await new Promise((resolve) => setTimeout(resolve, 200));
       const match = serverLogs.match(/SERVER_STARTED_PORT:(\d+)/);
       if (match) {
@@ -89,7 +89,7 @@ describe('Genuine HTTP Integration Test (BFF Helper & Next.js AI Probe Route -> 
     if (!started) {
       throw new Error(`FastAPI test server failed to start on OS-assigned port ${actualPort}. Server logs:\n${serverLogs}`);
     }
-  }, 25000);
+  }, 35000);
 
   afterEach(() => {
     if (serverProcess) {

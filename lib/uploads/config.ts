@@ -23,8 +23,10 @@ export function getUploadConfig(): UploadConfig {
   }
 
   return {
-    maxMultipartBytes: parseInt(process.env.CONTENT_UPLOAD_MAX_MULTIPART_BYTES || "52428800", 10), // 50MB
-    maxPdfBytes: parseInt(process.env.CONTENT_UPLOAD_MAX_PDF_BYTES || "52428800", 10),
+    // Textbooks can be substantially larger than chapter notes. Keep the
+    // local-admin ceiling bounded while leaving room for multipart metadata.
+    maxMultipartBytes: parseInt(process.env.CONTENT_UPLOAD_MAX_MULTIPART_BYTES || "167772160", 10), // 160 MiB
+    maxPdfBytes: parseInt(process.env.CONTENT_UPLOAD_MAX_PDF_BYTES || "157286400", 10), // 150 MiB
     maxPdfPages: parseInt(process.env.CONTENT_UPLOAD_MAX_PDF_PAGES || "500", 10),
     maxFields: parseInt(process.env.CONTENT_UPLOAD_MAX_FIELDS || "20", 10),
     maxFieldBytes: parseInt(process.env.CONTENT_UPLOAD_MAX_FIELD_BYTES || "10240", 10), // 10KB

@@ -2,6 +2,26 @@
 
 This document logs significant architectural decisions and changes made throughout the development process. Future AI assistants and developers should consult this document to understand the "why" behind the codebase design.
 
+## Module 4 Run 1 decisions
+
+- **Decision:** Keep the AI service private behind two typed same-origin routes.
+  - The browser never receives the Railway URL or internal signing key. Firebase verification, Origin/content validation, the trusted profile read, RS256 minting, safe error mapping, and no-store responses remain server-side.
+- **Decision:** Derive usage tier once from the existing user profile.
+  - `subscriptionActive=true` means premium; otherwise the stored/authenticated provider selects anonymous or Google. One Ask performs at most one direct profile read, and browser input cannot override the result.
+- **Decision:** Keep Single Ask text-only.
+  - The Run 1 contract has no file surface and no OCR dependency. Module 5 owns later batch/file/OCR behavior and its `mcq|mixed` batch modes.
+
+## Module 4 Run 2 decisions
+
+- **Decision:** Keep the student workflow operation-idempotent.
+  - A deliberate new question receives a new UUID; retrying that same network operation reuses it. The UI permits one active request, supports cancellation, and ignores stale responses.
+- **Decision:** Render by trusted answer source, not by model prose.
+  - Labels, citations, visuals, and the exact General AI warning derive from the validated response contract. Raw HTML and arbitrary model URLs are never rendered.
+- **Decision:** Reuse one local-only admin boundary.
+  - Prompt, candidate, bank, and retention operations use the existing session/claim/Origin/CSRF/internal-JWT chain and one server-only service client. No parallel auth system or public Vercel admin route was introduced.
+- **Decision:** Treat support contact as public configuration.
+  - The optional WhatsApp action reads `academy_settings/default`, strips the number to digits, URL-encodes the message, and remains hidden when the owner has not configured valid public values.
+
 ## Phase 1B: Database Strategy
 - **Decision:** Separate Public Catalogue from Private Analytics/Usage limits.
 - **Change Details:** 
@@ -99,11 +119,12 @@ This document logs significant architectural decisions and changes made througho
   - `listPublicResources` filters past paper criteria (`examinationBoardId`, `paperYear`, `paperSession`, `paperType`) directly inside the Firestore query as `.where()` clauses using [Firestore's index merging feature](https://firebase.google.com/docs/firestore/query-data/index-overview).
   - This supersedes the earlier in-memory bounded candidate loop (`MAX_CANDIDATE_BATCHES_PER_REQUEST`), maximizing read-cost efficiency on Firestore's free tier by avoiding unnecessary candidate reads.
   - Four narrow single-field + sort composite indexes (`examinationBoardId`, `paperYear`, `paperSession`, `paperType` paired with `displayOrder`) allow Firestore to dynamically merge indexes at query time for any filter combination without requiring a multi-field composite index per combination.
-- **Decision:** Deferred Server-Side Caching for Content List Endpoint (`DEFERRED`).
+- **Decision:** Shared Server-Side Caching for Published Content (`IMPLEMENTED`).
 - **Change Details:**
-  - The content list endpoint (`/api/content`, `listPublicResources`) currently executes a live Firestore read per request.
-  - **Future Optimization:** Apply the same server-side, shared cache pattern used for public catalogue pages in Phase 1D — Next.js `"use cache"` + `cacheTag` on the list query, invalidated via `revalidateTag()` from `resourceService.ts` (`publishResource`, `hideResource`, `archiveResource`, `addResourceVersion`) after transactions commit, tagged narrowly (e.g. per board+class+subject+type).
-  - **Reason for Deferral:** There is no production traffic yet, the Firestore index-merging fix directly resolves main read costs, and a shared server-side cache (benefiting all users) is a far stronger lever than a per-browser client cache. Revisit once production Firebase console telemetry identifies this endpoint as a significant share of daily read volume.
+  - `/api/content` and `listPublicResources` use Next.js `"use cache"` with shared scope tags and a bounded five-minute revalidation window.
+  - Published resource/version resolution used by reader, preview, and download routes is cached by resource ID.
+  - Upload, publish, hide, archive, restore, and version mutations invalidate the global, scope, and resource tags immediately after a successful write.
+  - This avoids repeated Firestore reads across users while preserving immediate publication-state changes.
 
 ## Phase 2D: Launch Search with Explicit Limits
 - **Decision:** Dormant Title Edit Hook Pattern.
@@ -180,6 +201,15 @@ This document logs significant architectural decisions and changes made througho
   - The service resolves the Drive key only for the trusted server BFF after corpus-scope validation. The BFF streams only allowlisted PNG, JPEG, WebP, and GIF response types with private no-store and nosniff headers. Drive keys, URLs, vectors, provider details, and image bytes are not persisted in browser-visible state.
 - **Decision:** Treat active corpus snapshots as immutable.
   - Operators clone active versions to building drafts, apply targeted question/visual edits, re-embed only affected rows/chunks, run named-version QA, approve, and atomically activate or roll back. Activation locks the corpus before its versions and preserves exactly one active version.
+
+## Phase 3F extension: Paired Chapter Import
+
+- **Decision:** Enrich external JSONL only inside the trusted BFF.
+  - External producers provide semantic visual association only (`visual_id`, type, title, description). `content_type: explanation` and Drive storage keys are server-controlled, generated only after DOCX validation, and sent solely to the existing signed ingestion endpoint.
+- **Decision:** Treat DOCX metadata cards as visual authority and Drive as private object storage.
+  - The parser accepts a card only when it has one following drawing, a resolvable relationship, an explicit valid crop, and an allowlisted image. It preserves card title/description and rejects substantive JSONL disagreement. Content-addressed Drive uploads make retries safe; compensation deletes only newly-created objects.
+- **Decision:** No automatic catalogue or corpus activation.
+  - The matching Firebase scope must exist and be active before the normal ingestion worker accepts a job. The import neither creates catalogue records nor activates a corpus; visuals start `pending` with `llm_decide` as their eventual display policy and use established QA. No paid OCR, LLM, or visual API is part of the flow.
 
 
 

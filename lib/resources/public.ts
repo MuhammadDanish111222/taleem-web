@@ -4,6 +4,8 @@ import { PublicResourceDto, Resource } from "./types";
 import { publicResourceQuerySchema } from "./validation";
 import { validateCatalogueHierarchy } from "../services/catalogue/catalogueHierarchyService";
 import { ResourceError } from "./errors";
+import { cacheLife, cacheTag } from "next/cache";
+import { getResource, getResourceVersion } from "../repositories/firestore/resourceRepository";
 
 export interface PublicResourceQuery {
   boardId: string;
@@ -44,11 +46,17 @@ function toPublicDto(resource: Resource): PublicResourceDto {
   };
 }
 
-export async function listPublicResources(input: PublicResourceQuery): Promise<PublicResourceResponse> {
-  const query = publicResourceQuerySchema.parse(input);
-
-  await validateCatalogueHierarchy(query.boardId, query.classId, query.subjectId, query.chapterId ?? null);
-
+async function listPublicResourcesCached(
+  query: ReturnType<typeof publicResourceQuerySchema.parse>,
+): Promise<PublicResourceResponse> {
+  "use cache";
+  if (process.env.NODE_ENV !== "test") {
+    cacheTag(
+      "resources",
+      `resources:${query.boardId}:${query.classId}:${query.subjectId}`,
+    );
+    cacheLife({ stale: 300, revalidate: 300, expire: 1800 });
+  }
   const db = getAdminFirestore();
   let dbQuery = db.collection("resources")
     .where("status", "==", "published")
@@ -103,5 +111,56 @@ export async function listPublicResources(input: PublicResourceQuery): Promise<P
   return {
     data,
     nextCursor,
+  };
+}
+
+export interface PublishedResourceAccess {
+  id: string;
+  type: PublicResourceDto["type"];
+  title: string;
+  boardId: string;
+  currentVersionId: string;
+  storageKey: string;
+  originalFilename: string;
+  sizeBytes: number;
+  sha256: string;
+}
+
+export async function listPublicResources(input: PublicResourceQuery): Promise<PublicResourceResponse> {
+  const query = publicResourceQuerySchema.parse(input);
+  await validateCatalogueHierarchy(
+    query.boardId,
+    query.classId,
+    query.subjectId,
+    query.chapterId ?? null,
+  );
+  return listPublicResourcesCached(query);
+}
+
+/**
+ * One cached publication/version lookup shared by the reader, preview and
+ * download routes. Mutation routes invalidate resource:<id> immediately.
+ */
+export async function getPublishedResourceAccess(resourceId: string): Promise<PublishedResourceAccess> {
+  "use cache";
+  if (process.env.NODE_ENV !== "test") {
+    cacheTag("resources", `resource:${resourceId}`);
+    cacheLife({ stale: 300, revalidate: 300, expire: 1800 });
+  }
+  const resource = await getResource(resourceId);
+  if (resource.status !== "published") {
+    throw new ResourceError("NOT_FOUND", "Published resource not found");
+  }
+  const version = await getResourceVersion(resourceId, resource.currentVersionId);
+  return {
+    id: resource.id,
+    type: resource.type,
+    title: resource.title,
+    boardId: resource.boardId,
+    currentVersionId: resource.currentVersionId,
+    storageKey: version.storageKey,
+    originalFilename: version.originalFilename,
+    sizeBytes: version.sizeBytes,
+    sha256: version.sha256,
   };
 }

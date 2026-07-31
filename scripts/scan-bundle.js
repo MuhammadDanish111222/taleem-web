@@ -15,7 +15,18 @@ const secretKeys = [
   'webContentLink',
   'storageKey',
   'sharedDriveId',
+  'AI_SERVICE_INTERNAL_URL',
+  'RAILWAY_AI_SERVICE_URL',
+  'INTERNAL_JWT_PRIVATE_KEY',
+  'DEEPSEEK_API_KEY',
 ];
+
+const secretValues = [
+  process.env.AI_SERVICE_INTERNAL_URL,
+  process.env.RAILWAY_AI_SERVICE_URL,
+  process.env.INTERNAL_JWT_PRIVATE_KEY,
+  process.env.DEEPSEEK_API_KEY,
+].filter((value) => typeof value === 'string' && value.length >= 8);
 
 let failed = false;
 
@@ -53,6 +64,12 @@ function scanDir(dir) {
       }
       
       if (isClientBundle) {
+        for (const secretValue of secretValues) {
+          if (content.includes(secretValue)) {
+            console.error(`LEAK DETECTED in CLIENT bundle ${fullPath}: Found a server-only environment value`);
+            failed = true;
+          }
+        }
         for (const pkg of serverOnlyImports) {
           let match = false;
           if (pkg === 'googleapis') {

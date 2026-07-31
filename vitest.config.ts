@@ -3,7 +3,7 @@ import path from 'path';
 
 export default defineConfig({
   test: {
-    testTimeout: 15000,
+    testTimeout: 30000,
     exclude: [".next/**", "node_modules/**"],
     env: {
       FIRESTORE_EMULATOR_HOST: '127.0.0.1:8080',

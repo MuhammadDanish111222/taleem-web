@@ -54,6 +54,36 @@ async function AuthGuard({ children }: { children: React.ReactNode }) {
           >
             RAG QA
           </Link>
+          <Link
+            href="/admin/ask/prompts"
+            className="flex items-center gap-3 px-4 py-3 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/50 rounded-lg transition-colors"
+          >
+            Ask Prompts
+          </Link>
+          <Link
+            href="/admin/ask/candidates"
+            className="flex items-center gap-3 px-4 py-3 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/50 rounded-lg transition-colors"
+          >
+            Ask Candidates
+          </Link>
+          <Link
+            href="/admin/ask/bank"
+            className="flex items-center gap-3 px-4 py-3 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/50 rounded-lg transition-colors"
+          >
+            Approved Bank
+          </Link>
+          <Link
+            href="/admin/content"
+            className="flex items-center gap-3 px-4 py-3 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/50 rounded-lg transition-colors"
+          >
+            Content
+          </Link>
+          <Link
+            href="/admin/users"
+            className="flex items-center gap-3 px-4 py-3 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/50 rounded-lg transition-colors"
+          >
+            Users
+          </Link>
         </nav>
 
         <div className="p-4 border-t border-gray-200 dark:border-gray-700">

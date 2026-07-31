@@ -18,6 +18,7 @@ import { getAdminFirestore } from '../../lib/firebase/admin';
 // For simplicity in this suite, we'll mock the catalogue hierarchy to avoid setting it up in firestore.
 vi.mock('../../lib/services/catalogue/catalogueHierarchyService', () => ({
   validateCatalogueHierarchy: vi.fn(),
+  validateExaminationBoard: vi.fn(),
 }));
 
 // Also mock the adminAuditLogRepository write to avoid complex assertions,
