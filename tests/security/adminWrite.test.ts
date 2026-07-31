@@ -28,6 +28,8 @@ describe("validateAdminWriteRequest", () => {
     ["missing CSRF", () => request({ "x-csrf-token": "" })],
     ["invalid CSRF", () => request({ "x-csrf-token": "wrong" })],
     ["invalid Origin", () => request({ origin: "https://attacker.example" })],
+    ["different Origin scheme", () => request({ origin: "https://localhost" })],
+    ["different Origin port", () => request({ origin: "http://localhost:3000" })],
   ])("rejects %s", async (_label, createRequest) => {
     await expect(validateAdminWriteRequest(createRequest())).rejects.toMatchObject({ code: "FORBIDDEN" });
   });

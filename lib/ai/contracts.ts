@@ -1,5 +1,16 @@
 import { z } from "zod";
 
+const LETTERS = /\p{Letter}/gu;
+const LATIN_LETTER = /\p{Script=Latin}/u;
+
+function isTypedEnglishText(value: string): boolean {
+  const letters = value.match(LETTERS) ?? [];
+  return (
+    letters.length > 0 &&
+    letters.every((letter) => LATIN_LETTER.test(letter))
+  );
+}
+
 export const askBrowserRequestSchema = z
   .object({
     requestId: z.string().uuid(),
@@ -16,7 +27,8 @@ export const askBrowserRequestSchema = z
         (value) =>
           !/(?:data:image\/|data:application\/pdf|base64,|%pdf-)/i.test(value),
         "ASK_TEXT_ONLY",
-      ),
+      )
+      .refine(isTypedEnglishText, "ASK_TEXT_ONLY"),
     answerMode: z.enum(["short", "long"]),
     answerStyle: z.literal("exam_style"),
   })

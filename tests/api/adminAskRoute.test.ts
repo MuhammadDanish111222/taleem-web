@@ -124,13 +124,35 @@ describe("Module 4 local Ask admin BFF", () => {
   });
 
   it.each([
+    { operation: "prompt_history" },
+    { operation: "prompt_create_draft", prompt_key: "ask_grounded", answer_mode: "short" },
     { operation: "prompt_update_draft", content: "Missing prompt ID" },
+    { operation: "prompt_test_draft", prompt_id: "11111111-1111-4111-8111-111111111111" },
+    { operation: "prompt_activate" },
+    { operation: "prompt_rollback" },
+    { operation: "candidate_inspect" },
+    { operation: "candidate_approve", candidate_id: "11111111-1111-4111-8111-111111111111" },
+    { operation: "candidate_reject", candidate_id: "11111111-1111-4111-8111-111111111111" },
     { operation: "bank_history" },
+    { operation: "bank_create" },
+    { operation: "bank_import", import_key: "module4-import" },
+    { operation: "bank_view" },
     { operation: "bank_archive", revision_id: "33333333-3333-4333-8333-333333333333" },
+    { operation: "bank_add_variation", revision_id: "33333333-3333-4333-8333-333333333333" },
     { operation: "bank_set_variation_active", variation_id: "44444444-4444-4444-8444-444444444444" },
     { operation: "bank_requeue_embedding" },
+    { operation: "bank_set_visuals", revision_id: "55555555-5555-4555-8555-555555555555" },
     { operation: "candidate_retention_cleanup", limit: 25 },
   ])("rejects incomplete high-impact $operation requests at the BFF", async (body) => {
+    const response = await POST(request(body));
+    expect(response.status).toBe(400);
+    expect(callAiService).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { operation: "prompt_history", prompt_key: "ask_grounded", answer_mode: "short", board_id: "punjab" },
+    { operation: "prompt_history", prompt_key: "ask_grounded", answer_mode: "short", class_id: "class-9" },
+  ])("rejects incomplete prompt hierarchy scopes", async (body) => {
     const response = await POST(request(body));
     expect(response.status).toBe(400);
     expect(callAiService).not.toHaveBeenCalled();

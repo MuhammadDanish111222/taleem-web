@@ -125,26 +125,85 @@ export const askAdminRequestSchema = z.object({
       ctx.addIssue({ code: z.ZodIssueCode.custom, message, path: [field] });
     }
   };
-  if (value.operation === "prompt_update_draft") {
-    requireField("prompt_id", "Prompt ID is required");
-    requireField("content", "Prompt content is required");
-  }
-  if (value.operation === "bank_history" && !value.revision_id && !value.question_id) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Revision or question ID is required", path: ["revision_id"] });
-  }
-  if (value.operation === "bank_archive") {
-    requireField("revision_id", "Revision ID is required");
-    requireField("reason", "Archive reason is required");
-  }
-  if (value.operation === "bank_set_variation_active") {
-    requireField("variation_id", "Variation ID is required");
-    requireField("active", "Variation state is required");
-  }
-  if (value.operation === "bank_requeue_embedding") {
-    requireField("revision_id", "Revision ID is required");
-  }
-  if (value.operation === "candidate_retention_cleanup") {
-    requireField("reason", "Retention authorization reason is required");
+  const requirePromptScope = () => {
+    requireField("prompt_key", "Prompt key is required");
+    requireField("answer_mode", "Answer mode is required");
+    if (value.board_id && (!value.class_id || !value.subject_id)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Board scope requires class and subject", path: ["board_id"] });
+    }
+    if (value.class_id && !value.subject_id) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Class scope requires subject", path: ["class_id"] });
+    }
+  };
+
+  switch (value.operation) {
+    case "prompt_history":
+      requirePromptScope();
+      break;
+    case "prompt_create_draft":
+      requirePromptScope();
+      requireField("content", "Prompt content is required");
+      break;
+    case "prompt_update_draft":
+      requireField("prompt_id", "Prompt ID is required");
+      requireField("content", "Prompt content is required");
+      break;
+    case "prompt_test_draft":
+      requireField("prompt_id", "Prompt ID is required");
+      requireField("question", "Test question is required");
+      break;
+    case "prompt_activate":
+    case "prompt_rollback":
+      requireField("prompt_id", "Prompt ID is required");
+      break;
+    case "candidate_inspect":
+      requireField("candidate_id", "Candidate ID is required");
+      break;
+    case "candidate_approve":
+      requireField("candidate_id", "Candidate ID is required");
+      requireField("approved_question", "Approved question is required");
+      break;
+    case "candidate_reject":
+      requireField("candidate_id", "Candidate ID is required");
+      requireField("rejection_reason", "Rejection reason is required");
+      break;
+    case "candidate_retention_cleanup":
+      requireField("reason", "Retention authorization reason is required");
+      break;
+    case "bank_create":
+      requireField("approved_question", "Approved question is required");
+      break;
+    case "bank_import":
+      requireField("import_key", "Import key is required");
+      requireField("import_questions", "Import questions are required");
+      break;
+    case "bank_view":
+      requireField("revision_id", "Revision ID is required");
+      break;
+    case "bank_history":
+      if (!value.revision_id && !value.question_id) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Revision or question ID is required", path: ["revision_id"] });
+      }
+      break;
+    case "bank_archive":
+      requireField("revision_id", "Revision ID is required");
+      requireField("reason", "Archive reason is required");
+      break;
+    case "bank_add_variation":
+      requireField("revision_id", "Revision ID is required");
+      requireField("variation", "Variation is required");
+      break;
+    case "bank_set_variation_active":
+      requireField("variation_id", "Variation ID is required");
+      requireField("active", "Variation state is required");
+      break;
+    case "bank_requeue_embedding":
+      requireField("revision_id", "Revision ID is required");
+      break;
+    case "bank_set_visuals":
+      requireField("revision_id", "Revision ID is required");
+      requireField("visual_ids", "Visual IDs are required");
+      break;
   }
 });
 

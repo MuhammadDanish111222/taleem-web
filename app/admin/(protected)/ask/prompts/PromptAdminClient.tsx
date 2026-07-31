@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { PromptHistoryItem } from "@/lib/ai/adminContracts";
 import { callAskAdmin } from "@/lib/client/askAdmin";
 
@@ -42,6 +42,18 @@ export default function PromptAdminClient() {
     || (scopeKind === "subject" && Boolean(subjectId.trim()))
     || (scopeKind === "class_subject" && Boolean(classId.trim() && subjectId.trim()))
     || (scopeKind === "board_class_subject" && Boolean(boardId.trim() && classId.trim() && subjectId.trim()));
+
+  useEffect(() => {
+    // A selected prompt belongs to the exact key/mode/scope that loaded it.
+    // Clear it whenever that identity changes so mutations cannot target a
+    // stale prompt while the page displays a different scope.
+    setItems([]);
+    setSelectedId("");
+    setContent("");
+    setTestResult(null);
+    setNotice("");
+    setError("");
+  }, [answerMode, boardId, classId, promptKey, scopeKind, subjectId]);
 
   async function loadHistory(preferredId = selectedId) {
     if (!scopeReady) {

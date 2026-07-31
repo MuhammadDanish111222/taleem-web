@@ -117,6 +117,21 @@ describe("public Ask BFF", () => {
     expect(callAiService).not.toHaveBeenCalled();
   });
 
+  it("enforces typed English text at the BFF boundary", async () => {
+    const response = await ask(
+      post({ ...browserBody, question: "رفتار کیا ہے؟" }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      error: {
+        code: "ASK_TEXT_ONLY",
+        message: "Single Ask accepts typed text only",
+      },
+    });
+    expect(callAiService).not.toHaveBeenCalled();
+  });
+
   it("maps camelCase explicitly, trusts the profile tier, and returns safe camelCase", async () => {
     const response = await ask(post());
     expect(response.status).toBe(200);

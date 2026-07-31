@@ -16,7 +16,8 @@ export async function validateAdminWriteRequest(request: NextRequest): Promise<v
   }
 
   try {
-    if (new URL(origin).host !== host) {
+    const originUrl = new URL(origin);
+    if (originUrl.origin !== request.nextUrl.origin || originUrl.host !== host) {
       throw new DomainError("FORBIDDEN", "Invalid origin");
     }
   } catch (error) {
