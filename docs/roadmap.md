@@ -3,7 +3,7 @@
 ## Module 4: Ask a Question
 
 - [x] Run 1: public Ask/usage BFF, trusted identity/tier propagation, final typed contracts, production build and security verification.
-- [ ] Run 2 exit gate: the student Ask UI, local-only prompt/candidate/question-bank interfaces, and disposable-stack verification are complete. Real configuration, staging, deployment, push, and green CI remain required before this item may be checked.
+- [ ] Run 2 exit gate: the student Ask UI, local-only administration, real configuration, approved/grounded/general staging, deployment, push, and CI are verified. Only the owner-provided WhatsApp support setting remains before this item may be checked.
 
 - [x] Phase 0: Initial Repository Setup
 - [x] Phase 1: Authentication & User Management
