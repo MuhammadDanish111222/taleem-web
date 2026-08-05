@@ -83,6 +83,41 @@ describe("AnswerRenderer", () => {
     expect(container.querySelector("a")).toBeNull();
   });
 
+  it("renders long-answer headings and bullet lists as real structure", () => {
+    render(
+      <AnswerRenderer
+        answer={response({
+          answerMode: "long",
+          blocks: [
+            { type: "heading", text: "Core explanation", level: 2 },
+            {
+              type: "bullet_list",
+              items: ["First textbook point", "Second textbook point"],
+            },
+            {
+              type: "heading",
+              text: "Additional textbook knowledge (optional)",
+              level: 3,
+            },
+          ],
+        })}
+        getToken={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole("heading", { name: "Core explanation", level: 3 }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("First textbook point")).toBeInTheDocument();
+    expect(screen.getByText("Second textbook point")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", {
+        name: "Additional textbook knowledge (optional)",
+        level: 4,
+      }),
+    ).toBeInTheDocument();
+  });
+
   it("uses the exact General AI warning and suppresses textbook citations and visuals", () => {
     const { container } = render(
       <AnswerRenderer

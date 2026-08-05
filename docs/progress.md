@@ -1,5 +1,10 @@
 # Taleem AI Progress Log
 
+## Module 4 — Structured long-answer rendering
+
+- The public Ask renderer now supports validated level-2/level-3 headings and semantic bullet lists in addition to paragraphs, equations, citations, and protected visuals. Existing stored paragraph answers remain compatible.
+- Complete verification passes: `296` web tests with one intentionally gated skip, ESLint, TypeScript, the Next.js production build, client-bundle secret scan, and diff checks.
+
 This document serves as a persistent record of the progress made across different phases of the Taleem AI project. 
 
 ## Module 4 — Ask a Question, Run 2 staging delivery

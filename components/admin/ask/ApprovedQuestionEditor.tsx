@@ -127,7 +127,7 @@ export default function ApprovedQuestionEditor({
       <label htmlFor={`${idPrefix}-blocks`} className="grid gap-1 text-sm font-medium text-slate-700">
         Ordered answer blocks (JSON)
         <textarea id={`${idPrefix}-blocks`} className={`${fieldClass} min-h-52 font-mono`} value={value.blocksJson} onChange={(event) => set("blocksJson", event.target.value)} spellCheck={false} required />
-        <span className="font-normal text-slate-500">Allowed block types: paragraph, equation, visual_ref. Visual blocks stay in this exact order.</span>
+        <span className="font-normal text-slate-500">Allowed block types: paragraph, heading, bullet_list, equation, visual_ref. Visual blocks stay in this exact order.</span>
       </label>
 
       {value.answerMode === "mcq" ? (

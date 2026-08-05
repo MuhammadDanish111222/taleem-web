@@ -1,5 +1,10 @@
 # Architecture
 
+## Module 4 structured long answers
+
+- The same-origin Ask contract carries backend-validated `heading` and `bullet_list` blocks to the student UI. The renderer maps them to semantic headings and lists; it does not infer formatting from paragraph text.
+- Protected visual resolution is unchanged: answers contain logical visual IDs only, while image bytes stream through the same-origin resolver. Old paragraph/equation/visual answers remain backward-compatible.
+
 The Taleem AI platform is divided into two primary repositories to enforce a clear separation of concerns and maintain security boundaries:
 
 ## Module 4 Run 1: Public Ask BFF

@@ -164,6 +164,22 @@ function AnswerBlock({
       </p>
     );
   }
+  if (block.type === "heading") {
+    return block.level === 2 ? (
+      <h3 className="pt-3 text-xl font-bold text-slate-950">{block.text}</h3>
+    ) : (
+      <h4 className="pt-2 text-lg font-semibold text-slate-900">{block.text}</h4>
+    );
+  }
+  if (block.type === "bullet_list") {
+    return (
+      <ul className="list-disc space-y-2 pl-7 text-[1.02rem] leading-8">
+        {block.items.map((item, index) => (
+          <li key={`${index}-${item}`}>{item}</li>
+        ))}
+      </ul>
+    );
+  }
   if (block.type === "equation") {
     return <EquationBlock latex={block.latex} />;
   }

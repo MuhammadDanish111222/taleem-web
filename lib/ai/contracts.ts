@@ -36,6 +36,16 @@ export const askBrowserRequestSchema = z
 
 const answerBlockSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("paragraph"), text: z.string() }).strict(),
+  z
+    .object({
+      type: z.literal("heading"),
+      text: z.string(),
+      level: z.union([z.literal(2), z.literal(3)]),
+    })
+    .strict(),
+  z
+    .object({ type: z.literal("bullet_list"), items: z.array(z.string()) })
+    .strict(),
   z.object({ type: z.literal("equation"), latex: z.string() }).strict(),
   z.object({ type: z.literal("visual_ref"), visual_id: z.string() }).strict(),
 ]);

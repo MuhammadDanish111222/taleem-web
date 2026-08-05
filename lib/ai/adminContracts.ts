@@ -29,6 +29,8 @@ export type AskAdminOperation = (typeof askAdminOperations)[number];
 
 const answerBlockSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("paragraph"), text: z.string().trim().min(1).max(12_000) }).strict(),
+  z.object({ type: z.literal("heading"), text: z.string().trim().min(1).max(300), level: z.union([z.literal(2), z.literal(3)]) }).strict(),
+  z.object({ type: z.literal("bullet_list"), items: z.array(z.string().trim().min(1).max(2_000)).min(1).max(40) }).strict(),
   z.object({ type: z.literal("equation"), latex: z.string().trim().min(1).max(4_000) }).strict(),
   z.object({ type: z.literal("visual_ref"), visual_id: z.string().trim().min(1).max(160) }).strict(),
 ]);
@@ -244,6 +246,8 @@ export interface CandidateDetail extends CandidateSummary {
   raw_question: string;
   answer_blocks: Array<
     | { type: "paragraph"; text: string }
+    | { type: "heading"; text: string; level: 2 | 3 }
+    | { type: "bullet_list"; items: string[] }
     | { type: "equation"; latex: string }
     | { type: "visual_ref"; visual_id: string }
   >;
