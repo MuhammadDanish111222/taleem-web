@@ -29,4 +29,4 @@ The client converts this configuration to an encoded `https://wa.me/` URL. Do no
 
 Run approved-bank, textbook-grounded, General AI, disabled-fallback, quota/concurrency, idempotency, prompt activation/rollback, candidate approval/reuse, visual allow/deny, expired/invalid auth, direct-to-Railway rejection, and public-admin 404 scenarios.
 
-Module 4 remains incomplete until the real Supabase/shared Redis/provider path is configured, staging no longer depends on the owner's laptop, both repositories are pushed to `main`, and the current GitHub Actions workflows are green.
+Module 4 completion was verified after the real Supabase/shared Redis/provider path, staging, main-branch deployment, CI, and owner-provided public WhatsApp setting were all confirmed. Keep the same checks for future changes.

@@ -20,7 +20,7 @@ This document logs significant architectural decisions and changes made througho
 - **Decision:** Reuse one local-only admin boundary.
   - Prompt, candidate, bank, and retention operations use the existing session/claim/Origin/CSRF/internal-JWT chain and one server-only service client. No parallel auth system or public Vercel admin route was introduced.
 - **Decision:** Treat support contact as public configuration.
-  - The optional WhatsApp action reads `academy_settings/default`, strips the number to digits, URL-encodes the message, and remains hidden when the owner has not configured valid public values.
+  - The WhatsApp action reads the verified owner-provided `academy_settings/default` document, strips the number to digits, and URL-encodes the message. It remains hidden only if a future deployment has no valid public configuration.
 - **Decision:** Render source labels only from the validated backend source.
   - Retrieval rank agreement is not displayed as source confidence. A grounded response must carry verified citations; an uncited fallback is rendered with the exact General AI warning and cannot render textbook citations or visuals.
 

@@ -35,5 +35,5 @@ Please refer to [docs/roadmap.md](file:///d:/AI%20Learning/BEST%20WISHES/Taleem%
 
 Set `ADMIN_PANEL_ENABLED=true` only on a local developer laptop. Set `ADMIN_PANEL_ENABLED=false` on Vercel; local RAG administration and its visual proxy return 404 before admin authentication, Firebase Admin, internal JWT signing, parsing, or AI-service calls are reached. Public routes remain available.
 
-See [`docs/deployment_runbook.md`](docs/deployment_runbook.md) for the Module 4 environment boundary and staging checklist. Local implementation is verified, but Module 4 remains open until the real migration/configuration/deployment/push/CI exit gates pass.
+See [`docs/deployment_runbook.md`](docs/deployment_runbook.md) for the Module 4 environment boundary and staging checklist. Module 4 is complete: real configuration, deployment, staging, CI, and the public WhatsApp support setting were verified.
 

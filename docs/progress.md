@@ -9,7 +9,7 @@ This document serves as a persistent record of the progress made across differen
 
 ## Module 4 — Ask a Question, Run 2 staging delivery
 
-- **Status:** Student and local-admin implementation, real service integration, deployment, source-labelled staging, and CI pass. The Module 4 exit gate remains open only for the owner's public WhatsApp support setting.
+- **Status:** Complete. Student and local-admin implementation, real service integration, deployment, source-labelled staging, CI, and the public WhatsApp support setting have all been verified.
 - **Student Ask:** `/ai/ask` reuses the catalogue hierarchy, accepts typed English text only, offers short/long modes with internal `exam_style`, generates operation UUIDs correctly, keeps one cancellable request in flight, prevents stale replacement, loads usage once, updates it from responses, and never polls.
 - **Rendering:** Approved, textbook-grounded, and the exact “General AI answer — not verified from your selected textbook.” states are distinct. Validated structured blocks preserve equation and reviewed-visual positions. Raw HTML and arbitrary URLs are disabled; visuals use the protected same-origin route.
 - **Local administration:** Prompt history/draft/edit/test/activate/rollback, candidate filters/inspection/approve/reject/retention preview, and approved-bank create/import/history/archive/variation/embedding/visual-link operations reuse the existing local-only security boundary.
@@ -18,8 +18,8 @@ This document serves as a persistent record of the progress made across differen
 - **Boundary hardening:** A fresh `56`-test focused run verifies typed-English enforcement at the BFF, complete operation-required admin contracts, literal same-Origin scheme/host/port checks, and prompt-selection invalidation when key/mode/scope changes. Lint, typecheck, production build, bundle scan, and `git diff --check` passed again.
 - **Real staging:** The Vercel BFF successfully returned a cited `syllabus_grounded` answer, the exact General AI warning with zero citations/visuals, and an audited exact `approved_bank` answer with zero provider attempts. Anonymous usage returned the configured 5/day state through the Redis-backed service path. Temporary Firebase Auth staging identities were deleted immediately after each scenario.
 - **Deployment and CI:** The public Vercel Ask page is live and the latest web CI run `30638671011` is green. Railway deployment `5a64df3f-87a0-46b8-a03a-3d2404d89164` is healthy; service CI run `30993218596` is also green.
-- **Support setting:** Real Firestore currently has no `academy_settings/default` document. The WhatsApp action therefore remains safely hidden. No number or message has been invented.
-- **Remaining exit work:** The owner must provide the public WhatsApp number and default message so `academy_settings/default` can be created and the limit-exceeded action can be verified. No Module 4 completion claim is made before that input.
+- **Support setting:** Real Firestore now has a visible `academy_settings/default` document with the owner-provided WhatsApp number and a configured support message. The limit-exceeded action can therefore render its encoded public WhatsApp link.
+- **Exit gate:** Complete. No owner-laptop dependency remains in the public Ask path.
 
 ## Module 4 — Ask a Question, Run 1 of 2
 
