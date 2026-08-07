@@ -1,0 +1,9 @@
+# Local/generated artifacts must never be uploaded as source for a deployment.
+.git
+.next
+node_modules
+jdk
+jdk.zip
+*.log
+.env
+.env.*
