@@ -9,6 +9,7 @@ Next.js 16 App Router web application, student platform, and admin portal (`tale
 - **Internal Security & Auth**: Cross-repository RS256 asymmetric JWT signing (`signInternalJwt.ts`), double-submit CSRF cookie protection (`__csrf`), and browser isolation of backend secrets.
 - **Module 4 Single Ask**: Public `/ai/ask` provides typed-English board/class/subject/chapter selection, `short|long` mode, one cancellable in-flight request, idempotent retry, Pakistan-time usage, safe equations, and distinct approved/textbook-grounded/General AI states.
 - **Module 4 Local Administration**: Prompt history/drafts/tests/activation/rollback, generated-candidate review, approved-bank revisions/variations/visuals/import, and retention preview are available only when `ADMIN_PANEL_ENABLED=true`.
+- **Module 5 Run 1 (dark)**: a separate same-origin Multiple Ask BFF contract carries immutable curriculum scope into private direct uploads and durable validation jobs; it has no UI, OCR, or answers and is disabled by default. See [`docs/module5_run1_multiple_ask.md`](docs/module5_run1_multiple_ask.md).
 
 ## Getting Started
 

@@ -19,3 +19,9 @@
     @apply bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-100;
   }
 }
+
+@media print {
+  @page { margin: 14mm; }
+  body { background: #fff !important; color: #111827 !important; }
+  .multiple-ask-results { display: block; }
+}

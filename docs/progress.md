@@ -1,5 +1,10 @@
 # Taleem AI Progress Log
 
+## Module 5 — Multiple Ask, Runs 1–3
+
+- **Status:** Runs 1–3 are complete and the separate same-origin BFF routes still return 404 by default. Module 5 overall remains incomplete pending Run 4 student UI. No Multiple Ask student UI, real upload, paid provider call, deployment, commit, or push was performed.
+- **Boundary:** Files have a direct private-storage capability path only with immutable curriculum scope. Run 3 extends the existing safe polling contract with persisted answer results and a first-class resume route, while keeping raw uploaded content, storage references, internal URLs, and credentials out of browser responses. The existing typed-text Single Ask route remains unchanged and `MULTIPLE_ASK_RUN1_ENABLED=false`.
+
 ## Module 4 — Structured long-answer rendering
 
 - The public Ask renderer now supports validated level-2/level-3 headings and semantic bullet lists in addition to paragraphs, equations, citations, and protected visuals. Existing stored paragraph answers remain compatible.
@@ -218,4 +223,11 @@ This document serves as a persistent record of the progress made across differen
 - **Cost and speed:** Catalogue queries, published content lists, title search, published reader/version resolution, and active RAG version configuration use bounded shared caches. Content mutations invalidate narrow Next.js tags immediately; RAG activation/rollback invalidates the hashed Redis scope key after commit. Student profile synchronization is at most once per user per tab session and unchanged profiles are not rewritten.
 - **RAG operations:** Paired imports detect identical in-progress/succeeded chapter submissions, reuse content-addressed Drive visuals, automatically use an editable corpus snapshot, and provide a preview-first cleanup for importer-owned visuals that are unreferenced and older than 24 hours.
 - **Live verification:** Real Firebase contains the active Punjab catalogue, student profiles, and a published Chemistry book. Its Google Drive PDF is available through byte-range preview. Real Supabase retains one complete active Punjab/9/Chemistry corpus with 19/19 chunk embeddings and 94/94 expected-question embeddings.
+
+## Module 5 Run 4: Student Multiple Ask frontend
+
+- **Status:** Implemented and verified locally; production enablement/staging remains pending.
+- **Details:** Added `/ai/multiple-ask`, using the existing published catalogue selectors, Firebase identity, existing usage panel, and same-origin Run 1–3 BFF routes. It supports one JPEG/PNG/WebP image, PDF, or pasted-text batch; browser file bytes use only the returned one-time signed `PUT` capability. Pasted text remains form state and is never stored locally.
+- **Durability and results:** Only a job ID plus minimal scope/display metadata is retained for reload/resume. Polling is backoff-bounded and stops for terminal/correction states and on unmount. Corrections preserve order and require an explicit mode with strict A–D MCQ options. Ordered results reuse the Module 4 source-aware renderer; General AI/MCQ suppress citations and visuals. Print is browser-local.
+- **Verification:** Focused Multiple Ask BFF/API/renderer tests passed (16 tests); `npm run typecheck`, `npm run lint`, `npm run build`, `npm run scan:bundle`, and `git diff --check` passed. No real student upload, OCR, LLM/DeepSeek call, deployment, commit, or push was performed.
 

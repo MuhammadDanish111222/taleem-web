@@ -236,11 +236,22 @@ export async function loadAskVisual(
   signal?: AbortSignal,
 ): Promise<Blob> {
   const path = `/api/ai/visual/${encodeURIComponent(visualId)}?requestId=${encodeURIComponent(requestId)}`;
-  const response = await authenticatedFetch(
+  let response = await authenticatedFetch(
     path,
     { method: "GET", signal },
     getToken,
   );
+  // Multiple Ask result items are addressed by their durable job ID rather
+  // than a Single Ask client request ID. The initial route remains the
+  // backward-compatible path; a 404 is the only case that may try the
+  // separately feature-gated, same-origin job-owned visual proxy.
+  if (response.status === 404) {
+    response = await authenticatedFetch(
+      `/api/ai/multiple-ask/jobs/${encodeURIComponent(requestId)}/visual/${encodeURIComponent(visualId)}`,
+      { method: "GET", signal },
+      getToken,
+    );
+  }
   if (!response.ok) {
     throw new AskApiError(
       response.status === 401

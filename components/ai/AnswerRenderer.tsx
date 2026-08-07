@@ -81,10 +81,17 @@ function ProtectedVisual({
   visual,
   requestId,
   getToken,
+  loadVisual = loadAskVisual,
 }: {
   visual: AskVisual;
   requestId: string;
   getToken: TokenProvider;
+  loadVisual?: (
+    visualId: string,
+    requestId: string,
+    getToken: TokenProvider,
+    signal?: AbortSignal,
+  ) => Promise<Blob>;
 }) {
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
@@ -94,7 +101,7 @@ function ProtectedVisual({
     let createdUrl: string | null = null;
     setObjectUrl(null);
     setFailed(false);
-    loadAskVisual(visual.visualId, requestId, getToken, controller.signal)
+    loadVisual(visual.visualId, requestId, getToken, controller.signal)
       .then((blob) => {
         createdUrl = URL.createObjectURL(blob);
         setObjectUrl(createdUrl);
@@ -108,7 +115,7 @@ function ProtectedVisual({
       controller.abort();
       if (createdUrl) URL.revokeObjectURL(createdUrl);
     };
-  }, [getToken, requestId, visual.visualId]);
+  }, [getToken, loadVisual, requestId, visual.visualId]);
 
   return (
     <figure className="rounded-xl border border-slate-200 bg-white p-3">
@@ -151,11 +158,18 @@ function AnswerBlock({
   visuals,
   requestId,
   getToken,
+  loadVisual,
 }: {
   block: AskAnswerBlock;
   visuals: ReadonlyMap<string, AskVisual>;
   requestId: string;
   getToken: TokenProvider;
+  loadVisual?: (
+    visualId: string,
+    requestId: string,
+    getToken: TokenProvider,
+    signal?: AbortSignal,
+  ) => Promise<Blob>;
 }) {
   if (block.type === "paragraph") {
     return (
@@ -190,6 +204,7 @@ function AnswerBlock({
       visual={visual}
       requestId={requestId}
       getToken={getToken}
+      loadVisual={loadVisual}
     />
   );
 }
@@ -228,9 +243,18 @@ function CitationList({ citations }: { citations: AskCitation[] }) {
 export function AnswerRenderer({
   answer,
   getToken,
+  visuals: visualOverride,
+  loadVisual,
 }: {
   answer: AskResponse;
   getToken: TokenProvider;
+  visuals?: AskVisual[];
+  loadVisual?: (
+    visualId: string,
+    requestId: string,
+    getToken: TokenProvider,
+    signal?: AbortSignal,
+  ) => Promise<Blob>;
 }) {
   if (answer.terminalStatus !== "answered" || !answer.answerSource) {
     return (
@@ -257,7 +281,7 @@ export function AnswerRenderer({
   const presentation = sourcePresentation(answer.answerSource);
   const isGeneral = answer.answerSource === "general_knowledge";
   const visuals = new Map(
-    (isGeneral ? [] : answer.visuals).map((visual) => [
+    (isGeneral ? [] : visualOverride ?? answer.visuals).map((visual) => [
       visual.visualId,
       visual,
     ]),
@@ -293,6 +317,7 @@ export function AnswerRenderer({
             visuals={visuals}
             requestId={answer.requestId}
             getToken={getToken}
+            loadVisual={loadVisual}
           />
         ))}
       </div>

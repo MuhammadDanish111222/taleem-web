@@ -1,9 +1,23 @@
 # Architecture
 
+## Module 5 Runs 1–3: Multiple Ask foundation (dark)
+
+- New `/api/ai/multiple-ask/*` BFF routes are separate from Single Ask and return 404 before identity parsing while `MULTIPLE_ASK_RUN1_ENABLED` is false. They accept JSON metadata/pasted text only; no file body is proxied through Vercel.
+- The only browser storage capability is a short-lived direct upload URL for one private temporary object. Browser DTOs contain no Railway URL, service role, Storage credential, or OCR/provider key. Run 3 extends the existing same-origin status/resume contracts for durable answer results, but the BFF still returns 404 before authentication while the flag is false. There is no student UI or deployment work; Module 5 remains incomplete pending Run 4.
+- See [`module5_run1_multiple_ask.md`](module5_run1_multiple_ask.md) for the complete contract boundary.
+
 ## Module 4 structured long answers
 
 - The same-origin Ask contract carries backend-validated `heading` and `bullet_list` blocks to the student UI. The renderer maps them to semantic headings and lists; it does not infer formatting from paragraph text.
 - Protected visual resolution is unchanged: answers contain logical visual IDs only, while image bytes stream through the same-origin resolver. Old paragraph/equation/visual answers remain backward-compatible.
+
+## Module 5 Run 4: Student Multiple Ask UI
+
+- `/ai/multiple-ask` is a public student route behind the existing Firebase identity experience. It reuses cached published hierarchy selectors and accepts an optional chapter through the existing All Chapters choice.
+- Browser calls stay same-origin except the private one-time signed storage `PUT`, which receives raw file bytes with only the method/headers returned by the session BFF. No pasted source text, bytes, signed URLs, internal URLs, credentials, or provider configuration is persisted by the page.
+- Reload metadata is limited to durable job ID, scope, input kind, and a timestamp. Active jobs use bounded backoff polling; terminal/correction/unmounted jobs do not poll. Corrections and resume operate on the same job.
+- Ordered result cards reuse the Module 4 renderer. General AI—including MCQ—uses the exact unverified warning and never renders citations or visuals. Approved/grounded visual bytes use a job-owned, same-origin protected proxy, which verifies the authenticated job before streaming a reviewed visual. Printing is local to the authenticated student's currently loaded page; it creates no result URL or PDF API.
+- The feature gate remains first in every Multiple Ask BFF route. With `MULTIPLE_ASK_RUN1_ENABLED=false`, all remain 404 before identity parsing or upstream work. Production enablement and staging are not part of Run 4.
 
 The Taleem AI platform is divided into two primary repositories to enforce a clear separation of concerns and maintain security boundaries:
 

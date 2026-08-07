@@ -22,6 +22,7 @@ export default function Home() {
             { title: "Notes", href: "/notes", description: "Find chapter notes and revision material." },
             { title: "Past Papers", href: "/past-papers", description: "Practice published examination papers." },
             { title: "Single Ask", href: "/ai/ask", description: "Type one study question and get a clearly sourced answer." },
+            { title: "Multiple Ask", href: "/ai/multiple-ask", description: "Upload one paper or paste questions for an ordered batch of answers." },
           ].map((item) => (
             <Link
               key={item.href}
