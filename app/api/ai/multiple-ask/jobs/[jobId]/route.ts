@@ -7,7 +7,6 @@ import { multipleAskStatusInternalResponseSchema, toBrowserStatusResponse } from
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ jobId: string }> }) {
   if (!isMultipleAskRun1Enabled()) return jsonNoStore({ error: { code: "NOT_FOUND" } }, 404);
-  if (!validateSameOrigin(request)) return jsonNoStore({ error: { code: "INVALID_ORIGIN" } }, 403);
   const identity = await authenticateAskRequest(request);
   if (!identity.ok) return identity.response;
   const { jobId } = await params;
