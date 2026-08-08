@@ -41,48 +41,6 @@ export const multipleAskTextBrowserRequestSchema = z
   .object({ requestId, text: z.string().trim().min(1).max(30000), ...scopeSchema })
   .strict();
 
-const jobResponseSchema = z
-  .object({
-    job_id: z.string().uuid(),
-    workflow_status: z.enum([
-      "queued",
-      "validating",
-      "validated",
-      "extracting",
-      "needs_correction",
-      "ready_to_answer",
-      "answering",
-      "partially_completed",
-      "completed",
-      "failed",
-      "invalid",
-      "too_many_questions",
-      "cancelled",
-      "limit_reached",
-    ]),
-    queue_status: z.enum([
-      "queued",
-      "leased",
-      "running",
-      "retry_wait",
-      "succeeded",
-      "failed",
-      "cancelled",
-    ]),
-  })
-  .strict();
-
-export const multipleAskSessionInternalResponseSchema = z
-  .object({
-    session_id: z.string().uuid(),
-    upload_url: z.string().url(),
-    upload_method: z.literal("PUT"),
-    upload_headers: z.record(z.string(), z.string()),
-    upload_capability_expires_at: z.string().datetime({ offset: true }),
-  })
-  .strict();
-export const multipleAskJobInternalResponseSchema = jobResponseSchema;
-
 const multipleAskWorkflowStatus = z.enum([
   "queued", "validating", "validated", "extracting", "needs_correction",
   "ready_to_answer", "answering", "partially_completed", "completed", "failed",
@@ -92,6 +50,21 @@ const multipleAskItemStatus = z.enum([
   "pending_extraction", "needs_correction", "ready_to_answer", "answering",
   "answered", "failed", "cancelled",
 ]);
+
+const jobResponseSchema = z.object({
+  job_id: z.string(),
+  workflow_status: multipleAskWorkflowStatus,
+  queue_status: z.string().nullable().optional().default("queued"),
+});
+
+export const multipleAskSessionInternalResponseSchema = z.object({
+  session_id: z.string(),
+  upload_url: z.string().url(),
+  upload_method: z.literal("PUT"),
+  upload_headers: z.record(z.string(), z.string()),
+  upload_capability_expires_at: z.string().nullable().optional(),
+});
+export const multipleAskJobInternalResponseSchema = jobResponseSchema;
 
 export const multipleAskCorrectionBrowserRequestSchema = z.object({
   requestId,
@@ -113,28 +86,50 @@ export const multipleAskCorrectionBrowserRequestSchema = z.object({
 });
 export const multipleAskResumeBrowserRequestSchema = z.object({ requestId }).strict();
 export const multipleAskStatusInternalResponseSchema = z.object({
-  job_id: z.string().uuid(),
+  job_id: z.string(),
   workflow_status: multipleAskWorkflowStatus,
   input_kind: z.enum(["image", "pdf", "text"]),
-  scope: z.object({ board_id: z.string(), class_id: z.string(), subject_id: z.string(), chapter_id: z.string().nullable() }),
-  created_at: z.string().datetime({ offset: true }),
-  updated_at: z.string().datetime({ offset: true }),
-  retention_expires_at: z.string().datetime({ offset: true }).nullable(),
-  terminal_error_code: z.string().nullable(),
-  queue: z.object({ status: z.enum(["queued", "leased", "running", "retry_wait", "succeeded", "failed", "cancelled"]).nullable(), stage: z.string().nullable(), progress: z.number().nullable() }),
+  scope: z.object({ board_id: z.string(), class_id: z.string(), subject_id: z.string(), chapter_id: z.string().nullable().optional() }),
+  created_at: z.string().nullable().optional(),
+  updated_at: z.string().nullable().optional(),
+  retention_expires_at: z.string().nullable().optional(),
+  terminal_error_code: z.string().nullable().optional(),
+  queue: z.object({
+    status: z.string().nullable().optional(),
+    stage: z.string().nullable().optional(),
+    progress: z.number().nullable().optional(),
+  }).nullable().optional().default({ status: null, stage: null, progress: null }),
   items: z.array(z.object({
-    item_id: z.string().uuid(), item_index: z.number().int(), display_label: z.string().nullable(), section_context: z.string().nullable(), item_status: multipleAskItemStatus,
-    normalized_question: z.string().nullable(), answer_mode: z.enum(["short", "long", "mcq", "not_clear"]).nullable(),
-    mcq_options: z.array(z.object({ label: z.string(), text: z.string() })), unclear_reason: z.string().nullable(), terminal_error_code: z.string().nullable(),
-    source_locator: z.record(z.unknown()).nullable(), extraction_version: z.number().int(), correction_version: z.number().int(), corrected_at: z.string().datetime({ offset: true }).nullable(),
+    item_id: z.string(),
+    item_index: z.number().int().nonnegative().optional().default(0),
+    display_label: z.string().nullable().optional(),
+    section_context: z.string().nullable().optional(),
+    item_status: multipleAskItemStatus.optional().default("pending_extraction"),
+    normalized_question: z.string().nullable().optional(),
+    answer_mode: z.enum(["short", "long", "mcq", "not_clear"]).nullable().optional(),
+    mcq_options: z.array(z.object({ label: z.string(), text: z.string() })).optional().default([]),
+    unclear_reason: z.string().nullable().optional(),
+    terminal_error_code: z.string().nullable().optional(),
+    source_locator: z.record(z.string(), z.unknown()).nullable().optional(),
+    extraction_version: z.number().int().optional().default(1),
+    correction_version: z.number().int().optional().default(0),
+    corrected_at: z.string().nullable().optional(),
     result: z.object({
       answer_source: z.enum(["approved_bank", "syllabus_grounded", "general_knowledge"]),
-      blocks: z.array(z.record(z.unknown())), citations: z.array(z.record(z.unknown())),
-      visual_ids: z.array(z.string()), approved_revision_id: z.string().uuid().nullable(),
+      blocks: z.array(z.record(z.string(), z.unknown())),
+      citations: z.array(z.record(z.string(), z.unknown())),
+      visual_ids: z.array(z.string()),
+      approved_revision_id: z.string().nullable().optional(),
     }).nullable().optional().default(null),
-  })),
-  summary: z.object({ total: z.number().int(), short: z.number().int(), long: z.number().int(), mcq: z.number().int(), not_clear: z.number().int() }),
-}).strict();
+  })).optional().default([]),
+  summary: z.object({
+    total: z.number().int().optional().default(0),
+    short: z.number().int().optional().default(0),
+    long: z.number().int().optional().default(0),
+    mcq: z.number().int().optional().default(0),
+    not_clear: z.number().int().optional().default(0),
+  }).optional().default({ total: 0, short: 0, long: 0, mcq: 0, not_clear: 0 }),
+});
 
 export function toInternalFileSessionRequest(
   input: z.infer<typeof multipleAskSessionBrowserRequestSchema>,
@@ -211,7 +206,7 @@ export function toBrowserStatusResponse(input: z.infer<typeof multipleAskStatusI
     scope: { boardId: input.scope.board_id, classId: input.scope.class_id, subjectId: input.scope.subject_id, chapterId: input.scope.chapter_id },
     createdAt: input.created_at, updatedAt: input.updated_at,
     retentionExpiresAt: input.retention_expires_at, terminalErrorCode: input.terminal_error_code,
-    queue: { status: input.queue.status, stage: input.queue.stage, progress: input.queue.progress },
+    queue: { status: input.queue?.status ?? null, stage: input.queue?.stage ?? null, progress: input.queue?.progress ?? null },
     items: input.items.map((item) => ({
       itemId: item.item_id, itemIndex: item.item_index, displayLabel: item.display_label, sectionContext: item.section_context, itemStatus: item.item_status,
       normalizedQuestion: item.normalized_question, answerMode: item.answer_mode,
