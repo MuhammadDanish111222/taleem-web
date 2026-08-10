@@ -71,8 +71,44 @@ export async function POST(request: NextRequest) {
     const cards = docxFile ? await parseVisualExtractsDocx(Buffer.from(await docxFile.arrayBuffer())) : new Map<string, VisualCard>();
     stage = "preflight";
 
+    const action = (form.get("action") as string)?.trim().toLowerCase() || "add";
+    const expectedChapterId = (form.get("expected_chapter_id") as string)?.trim();
+
     const chunks = validateExternalJsonl(jsonl, scope);
     const chapterId = chunks[0]?.chapter_id;
+
+    if (action === "replace") {
+      if (!expectedChapterId) {
+        throw new PairedImportError("CHAPTER_REPLACE_TARGET_MISMATCH", "Target chapter ID missing for Replace action.");
+      }
+      if (!chapterId || chapterId.toLowerCase() !== expectedChapterId.toLowerCase()) {
+        throw new PairedImportError(
+          "CHAPTER_REPLACE_TARGET_MISMATCH",
+          `JSONL file contains Chapter ${chapterId || "unknown"}, but Replace target was Chapter ${expectedChapterId}.`,
+        );
+      }
+    } else if (action === "add" && chapterId) {
+      try {
+        const overview = await callAiService(
+          "/api/v1/internal/admin/rag",
+          "POST",
+          { operation: "overview", ...scope },
+          session.uid,
+          true,
+          "local_rag_admin",
+          { requestId: request.headers.get("x-request-id") ?? undefined },
+        ) as { chapters?: Array<{ chapter_id: string }> };
+        const existingChapters = Array.isArray(overview.chapters) ? overview.chapters : [];
+        if (existingChapters.some((ch) => ch.chapter_id.toLowerCase() === chapterId.toLowerCase())) {
+          throw new PairedImportError(
+            "CHAPTER_ALREADY_EXISTS",
+            `Chapter ${chapterId} already exists in this subject. Click 'Replace' on Chapter ${chapterId} to update it.`,
+          );
+        }
+      } catch (err) {
+        if (err instanceof PairedImportError) throw err;
+      }
+    }
 
     const existingVisuals = new Map<string, { visual_id: string; title: string; description: string; storage_key: string }>();
     if (chapterId) {

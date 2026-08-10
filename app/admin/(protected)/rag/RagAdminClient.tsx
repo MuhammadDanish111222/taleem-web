@@ -123,6 +123,19 @@ export default function RagAdminClient() {
     }
   }
 
+  async function publishFirstSubject(versionId: string) {
+    setBusy(true); setStatus("Publishing initial subject version for students...");
+    try {
+      const approved = await request("approve_qa", versionId, { rationale: "Initial publication approval by admin" });
+      if (!approved) return;
+      const activated = await request("activate", versionId);
+      if (activated) {
+        setStatus("Subject published successfully. Student retrieval is now active.");
+        await refresh();
+      }
+    } finally { setBusy(false); }
+  }
+
   async function pairedImport(event: FormEvent) {
     event.preventDefault();
     if (!scopeComplete) { setStatus("Select board, class, and subject first."); return; }
@@ -133,6 +146,10 @@ export default function RagAdminClient() {
       data.set("board_id", scope.board_id);
       data.set("class_id", scope.class_id);
       data.set("subject_id", scope.subject_id);
+      data.set("action", targetChapter ? "replace" : "add");
+      if (targetChapter) {
+        data.set("expected_chapter_id", targetChapter);
+      }
       data.set("jsonl", jsonlFile);
       if (visualDocxFile) data.set("visual_docx", visualDocxFile);
 
@@ -220,7 +237,7 @@ export default function RagAdminClient() {
             <p className="text-xs text-amber-300">Publish this initial subject version to enable student RAG retrieval.</p>
           </div>
           <button
-            onClick={() => void request("activate", qaReadyVersion.id).then(refresh)}
+            onClick={() => void publishFirstSubject(qaReadyVersion.id)}
             className="rounded bg-amber-600 px-4 py-2 text-xs font-semibold text-white hover:bg-amber-500"
           >
             Publish to Students

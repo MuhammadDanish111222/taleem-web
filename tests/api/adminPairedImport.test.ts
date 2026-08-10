@@ -22,7 +22,7 @@ vi.mock("@/lib/imports/pairedChapterImport", () => ({
       this.code = code;
     }
   },
-  validateExternalJsonl: vi.fn(() => [{ chapter_id: "ch01", visuals: [] }]),
+  validateExternalJsonl: vi.fn((_jsonl: string) => [{ chapter_id: "ch01", visuals: [] }]),
   parseVisualExtractsDocx: vi.fn(async () => new Map()),
   enrichExternalChunks: vi.fn(() => ({ enriched: '{"internal":true}', referenced: new Set(), unused: [] })),
   sourceHash: vi.fn(() => "a".repeat(64)),
@@ -66,6 +66,34 @@ describe("paired chapter import BFF security", () => {
     const body = await response.json();
     expect(body.code).toBe("PAIRED_IMPORT_FILE_MISSING");
   });
+  it("rejects replace action if JSONL chapter_id does not match expected_chapter_id", async () => {
+    vi.mocked(paired.validateExternalJsonl).mockReturnValueOnce([{ chapter_id: "ch02", visuals: [] }] as any);
+    const form = new FormData();
+    form.set("board_id", "b"); form.set("class_id", "c"); form.set("subject_id", "s");
+    form.set("action", "replace"); form.set("expected_chapter_id", "ch01");
+    form.set("jsonl", new File(["{}"], "chapter.jsonl"));
+    const response = await POST(new NextRequest("http://localhost/api/admin/rag/paired-import", { method: "POST", body: form }));
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body.code).toBe("CHAPTER_REPLACE_TARGET_MISMATCH");
+  });
+  it("rejects add action if JSONL chapter_id already exists in live chapters", async () => {
+    vi.mocked(paired.validateExternalJsonl).mockReturnValueOnce([{ chapter_id: "ch01", visuals: [] }] as any);
+    vi.mocked(callAiService).mockImplementation(async (endpoint, _method, body) => {
+      if (endpoint === "/api/v1/internal/admin/rag" && body?.operation === "overview") {
+        return { chapters: [{ chapter_id: "ch01" }] };
+      }
+      return [];
+    });
+    const form = new FormData();
+    form.set("board_id", "b"); form.set("class_id", "c"); form.set("subject_id", "s");
+    form.set("action", "add");
+    form.set("jsonl", new File(["{}"], "chapter.jsonl"));
+    const response = await POST(new NextRequest("http://localhost/api/admin/rag/paired-import", { method: "POST", body: form }));
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body.code).toBe("CHAPTER_ALREADY_EXISTS");
+  });
   it("never returns enriched JSONL or storage keys", async () => {
     const form = new FormData(); form.set("board_id", "b"); form.set("class_id", "c"); form.set("subject_id", "s"); form.set("jsonl", new File(["{}"], "chapter.jsonl")); form.set("visual_docx", new File(["PK\x03\x04"], "visuals.docx", { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" }));
     const request = new NextRequest("http://localhost/api/admin/rag/paired-import", { method: "POST", body: form });
@@ -89,7 +117,7 @@ describe("paired chapter import BFF security", () => {
     expect(response.status).toBe(200);
     expect(body.data).toMatchObject({ duplicate: true, job_id: "job-existing", job_status: "succeeded" });
     expect(upload).not.toHaveBeenCalled();
-    expect(callAiService).toHaveBeenCalledTimes(2);
+    expect(callAiService).toHaveBeenCalledTimes(3);
   });
   it("directly ingests chapter into temporary building scope without cloning active subject", async () => {
     const calls: Array<{ endpoint: string; body: any }> = [];
