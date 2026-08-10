@@ -4,7 +4,7 @@ import { isAdminPanelEnabled } from "@/lib/config/adminPanel";
 import { validateAdminWriteRequest } from "@/lib/security/adminWrite";
 import { callAiService } from "@/lib/internalApi/callAiService";
 import { GoogleDriveProvider } from "@/lib/storage/googleDriveProvider";
-import { PairedImportError, VisualCard, enrichExternalChunks, parseVisualExtractsDocx, sourceHash, validateExternalJsonl } from "@/lib/imports/pairedChapterImport";
+import { ExistingVisualInfo, PairedImportError, VisualCard, enrichExternalChunks, parseVisualExtractsDocx, sourceHash, validateExternalJsonl } from "@/lib/imports/pairedChapterImport";
 import { DomainError } from "@/lib/services/admin/catalogueService";
 
 const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const existingVisuals = new Map<string, { visual_id: string; title: string; description: string; storage_key: string }>();
+    const existingVisuals = new Map<string, ExistingVisualInfo>();
     if (chapterId) {
       try {
         const insp = await callAiService(
@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
           true,
           "local_rag_admin",
           { requestId: request.headers.get("x-request-id") ?? undefined },
-        ) as Array<{ visual_id: string; title: string; description: string; storage_key: string }>;
+        ) as Array<ExistingVisualInfo>;
         if (Array.isArray(insp)) {
           for (const item of insp) {
             if (item.visual_id) {

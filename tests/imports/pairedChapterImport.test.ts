@@ -38,7 +38,7 @@ describe("paired JSONL validation and enrichment", () => {
   });
   it("reuses existing chapter visual storage keys when DOCX is omitted", async () => {
     const existing = new Map([
-      ["ch01_atom", { visual_id: "ch01_atom", title: "Atom diagram", description: "Atomic structure diagram", storage_key: "drive-key-atom-123" }],
+      ["ch01_atom", { visual_id: "ch01_atom", visual_type: "figure", title: "Atom diagram", description: "Atomic structure diagram", storage_key: "drive-key-atom-123", review_status: "approved", display_policy: "llm_decide" }],
     ]);
     const jsonl = JSON.stringify({
       board_id: "FBISE", class_id: "Class-9", subject_id: "Chemistry", chapter_id: "ch01",
@@ -51,6 +51,78 @@ describe("paired JSONL validation and enrichment", () => {
     expect(hash).toBeTruthy();
     const enrichedResult = enrichExternalChunks(chunks, new Map(), new Map(), existing);
     expect(enrichedResult.enriched).toContain("drive-key-atom-123");
+  });
+  it("unchanged approved visual remains approved after JSONL-only replacement", () => {
+    const existing = new Map([
+      ["v1", { visual_id: "v1", visual_type: "diagram", title: "Cell Diagram", description: "Eukaryotic cell structure", storage_key: "drive-key-v1", review_status: "approved", display_policy: "always_show" }],
+    ]);
+    const chunks = validateExternalJsonl(JSON.stringify({
+      board_id: "FBISE", class_id: "Class-9", subject_id: "Chemistry", chapter_id: "ch01",
+      topic_no: "1.1", topic_title: "Cells", chunk_order: 0,
+      chunk_text: "Cells are the basic unit of life.", expected_questions: ["What is a cell?"],
+      visuals: [{ visual_id: "v1", visual_type: "diagram", title: "Cell Diagram", description: "Eukaryotic cell structure" }],
+    }), scope);
+    const result = enrichExternalChunks(chunks, new Map(), new Map(), existing);
+    const enrichedRow = JSON.parse(result.enriched);
+    const visual = enrichedRow.visuals[0];
+    expect(visual.storage_key).toBe("drive-key-v1");
+    expect(visual.review_status).toBe("approved");
+    expect(visual.display_policy).toBe("always_show");
+    expect(visual.title).toBe("Cell Diagram");
+    expect(visual.description).toBe("Eukaryotic cell structure");
+  });
+  it("changed title/description uses JSONL metadata with existing image, still approved", () => {
+    const existing = new Map([
+      ["v1", { visual_id: "v1", visual_type: "diagram", title: "Old Title", description: "Old Description", storage_key: "drive-key-v1", review_status: "approved", display_policy: "llm_decide" }],
+    ]);
+    const chunks = validateExternalJsonl(JSON.stringify({
+      board_id: "FBISE", class_id: "Class-9", subject_id: "Chemistry", chapter_id: "ch01",
+      topic_no: "1.1", topic_title: "Cells", chunk_order: 0,
+      chunk_text: "Cells are the basic unit of life.", expected_questions: ["What is a cell?"],
+      visuals: [{ visual_id: "v1", visual_type: "diagram", title: "New Title", description: "New Description" }],
+    }), scope);
+    const result = enrichExternalChunks(chunks, new Map(), new Map(), existing);
+    const enrichedRow = JSON.parse(result.enriched);
+    const visual = enrichedRow.visuals[0];
+    expect(visual.storage_key).toBe("drive-key-v1");
+    expect(visual.title).toBe("New Title");
+    expect(visual.description).toBe("New Description");
+    expect(visual.review_status).toBe("approved");
+    expect(visual.display_policy).toBe("llm_decide");
+  });
+  it("DOCX visual gets review_status=approved and display_policy=llm_decide", () => {
+    const cards = new Map([
+      ["v_new", { visualId: "v_new", title: "New Chart", description: "Bar chart of results", originalPage: "3", imageHash: "abc123", image: Buffer.from("img"), mimeType: "image/png" as const }],
+    ]);
+    const chunks = validateExternalJsonl(JSON.stringify({
+      board_id: "FBISE", class_id: "Class-9", subject_id: "Chemistry", chapter_id: "ch01",
+      topic_no: "1.1", topic_title: "Results", chunk_order: 0,
+      chunk_text: "The experiment showed...", expected_questions: ["What were the results?"],
+      visuals: [{ visual_id: "v_new", visual_type: "graph", title: "New Chart", description: "Bar chart of results" }],
+    }), scope);
+    const result = enrichExternalChunks(chunks, cards, new Map([["v_new", "drive-key-new"]]));
+    const enrichedRow = JSON.parse(result.enriched);
+    const visual = enrichedRow.visuals[0];
+    expect(visual.storage_key).toBe("drive-key-new");
+    expect(visual.review_status).toBe("approved");
+    expect(visual.display_policy).toBe("llm_decide");
+    expect(visual.title).toBe("New Chart");
+    expect(visual.description).toBe("Bar chart of results");
+  });
+  it("missing visual without DOCX or existing still fails with EXTERNAL_VISUAL_UNKNOWN", () => {
+    const chunks = validateExternalJsonl(JSON.stringify({
+      board_id: "FBISE", class_id: "Class-9", subject_id: "Chemistry", chapter_id: "ch01",
+      topic_no: "1.1", topic_title: "Cells", chunk_order: 0,
+      chunk_text: "Cells are the basic unit of life.", expected_questions: ["What is a cell?"],
+      visuals: [{ visual_id: "missing_v", visual_type: "diagram", title: "T", description: "D" }],
+    }), scope);
+    try {
+      enrichExternalChunks(chunks, new Map(), new Map());
+      throw new Error("expected rejection");
+    } catch (error) {
+      expect(error).toBeInstanceOf(PairedImportError);
+      expect((error as PairedImportError).code).toBe("EXTERNAL_VISUAL_UNKNOWN");
+    }
   });
   it.each([
     external([{ visual_id: "unknown", visual_type: "figure", title: "Blue half", description: "Cropped blue image" }]),

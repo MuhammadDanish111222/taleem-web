@@ -176,11 +176,21 @@ export function validateExternalJsonl(source: string, scope: { board_id: string;
   return chunks;
 }
 
+export type ExistingVisualInfo = {
+  visual_id: string;
+  visual_type: string;
+  title: string;
+  description: string;
+  storage_key: string;
+  review_status: string;
+  display_policy: string;
+};
+
 export function enrichExternalChunks(
   chunks: ExternalChunk[],
   cards: Map<string, VisualCard>,
   storageKeys: Map<string, string>,
-  existingVisuals?: Map<string, { visual_id: string; title: string; description: string; storage_key: string }>,
+  existingVisuals?: Map<string, ExistingVisualInfo>,
 ) {
   const referenced = new Set<string>();
   const enriched = chunks.map((chunk) => ({
@@ -205,16 +215,29 @@ export function enrichExternalChunks(
       if (!storageKey) {
         throw new PairedImportError("PAIRED_IMPORT_UPLOAD_INCOMPLETE");
       }
-      const title = card ? card.title : existing!.title;
-      const description = card ? card.description : existing!.description;
       if (card && normalized(visual.title) !== normalized(card.title)) {
         throw new PairedImportError("EXTERNAL_VISUAL_TITLE_MISMATCH");
       }
       if (card && normalized(visual.description) !== normalized(card.description)) {
         throw new PairedImportError("EXTERNAL_VISUAL_DESCRIPTION_MISMATCH");
       }
+      // Always use incoming JSONL metadata (title, description, visual_type).
+      const title = normalized(card ? card.title : visual.title);
+      const description = normalized(card ? card.description : visual.description);
+
+      // Determine review_status and display_policy:
+      // - DOCX visual (new upload): approved + llm_decide
+      // - JSONL-only reuse with same image: carry forward existing review_status + display_policy
+      let review_status = "approved";
+      let display_policy = "llm_decide";
+      if (!card && existing) {
+        // Reusing existing image — carry forward old approval and display policy
+        review_status = existing.review_status || "approved";
+        display_policy = existing.display_policy || "llm_decide";
+      }
+
       referenced.add(id);
-      return { visual_id: id, visual_type: visual.visual_type, title: normalized(title), description: normalized(description), storage_key: storageKey };
+      return { visual_id: id, visual_type: visual.visual_type, title, description, storage_key: storageKey, review_status, display_policy };
     }),
   }));
   return { enriched: enriched.map((row) => JSON.stringify(row)).join("\n"), referenced, unused: [...cards.keys()].filter((id) => !referenced.has(id)) };
@@ -230,7 +253,7 @@ export function sourceHash(
   chunks: ExternalChunk[],
   cards: Map<string, VisualCard>,
   scope: { board_id: string; class_id: string; subject_id: string },
-  existingVisuals?: Map<string, { visual_id: string; title: string; description: string; storage_key: string }>,
+  existingVisuals?: Map<string, ExistingVisualInfo>,
 ) {
   const canonicalChunks = chunks.map((chunk) => ({
     board_id: chunk.board_id,
