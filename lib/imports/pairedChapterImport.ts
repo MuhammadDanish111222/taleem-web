@@ -16,7 +16,7 @@ const MAX_IMAGE_DIMENSION = 12_000;
 const MAX_IMAGE_PIXELS = 40_000_000;
 
 export class PairedImportError extends Error {
-  constructor(public readonly code: string) { super(code); }
+  constructor(public readonly code: string, message?: string) { super(message || code); }
 }
 
 export type VisualCard = { visualId: string; title: string; description: string; originalPage: string; image: Buffer; mimeType: SafeVisualMimeType; imageHash: string };
@@ -134,27 +134,45 @@ export async function parseVisualExtractsDocx(source: Buffer): Promise<Map<strin
 }
 
 export function validateExternalJsonl(source: string, scope: { board_id: string; class_id: string; subject_id: string }): ExternalChunk[] {
-  if (!source.trim() || Buffer.byteLength(source, "utf8") > MAX_JSONL_BYTES) throw new PairedImportError("EXTERNAL_JSONL_INVALID");
+  if (!source.trim()) throw new PairedImportError("EXTERNAL_JSONL_INVALID", "JSONL file is empty.");
+  if (Buffer.byteLength(source, "utf8") > MAX_JSONL_BYTES) throw new PairedImportError("EXTERNAL_JSONL_INVALID", "JSONL file exceeds maximum size (5MB).");
   const chunks: ExternalChunk[] = []; let chapter: string | undefined;
+  let lineNum = 0;
   for (const line of source.split(/\r?\n/)) {
+    lineNum += 1;
     if (!line.trim()) continue;
-    let value: unknown; try { value = JSON.parse(line); } catch { throw new PairedImportError("EXTERNAL_JSONL_INVALID"); }
-    if (!value || typeof value !== "object" || Array.isArray(value)) throw new PairedImportError("EXTERNAL_JSONL_INVALID");
+    let value: unknown; try { value = JSON.parse(line); } catch (err: any) { throw new PairedImportError("EXTERNAL_JSONL_INVALID", `Line ${lineNum}: Invalid JSON syntax (${err.message}).`); }
+    if (!value || typeof value !== "object" || Array.isArray(value)) throw new PairedImportError("EXTERNAL_JSONL_INVALID", `Line ${lineNum}: Row must be a JSON object.`);
     const row = value as Record<string, unknown>;
-    if ("content_type" in row || "storage_key" in row) throw new PairedImportError("EXTERNAL_JSONL_SERVER_FIELDS_FORBIDDEN");
+    if ("content_type" in row || "storage_key" in row) throw new PairedImportError("EXTERNAL_JSONL_SERVER_FIELDS_FORBIDDEN", `Line ${lineNum}: Server fields 'content_type' or 'storage_key' are forbidden.`);
     const requiredStrings = ["board_id", "class_id", "subject_id", "chapter_id", "topic_title", "chunk_text"];
-    if (requiredStrings.some((field) => typeof row[field] !== "string" || !String(row[field]).trim()) || !["board_id", "class_id", "subject_id"].every((field) => row[field] === scope[field as keyof typeof scope]) || (typeof row.topic_no !== "string" && typeof row.topic_no !== "number") || !String(row.topic_no).trim() || !Number.isInteger(row.chunk_order) || (row.chunk_order as number) < 0 || !Array.isArray(row.expected_questions) || !row.expected_questions.every((item) => typeof item === "string" && item.trim()) || !Array.isArray(row.visuals)) throw new PairedImportError("EXTERNAL_JSONL_INVALID");
-    chapter ??= row.chapter_id as string; if (chapter !== row.chapter_id) throw new PairedImportError("EXTERNAL_JSONL_SCOPE_MISMATCH");
+    for (const field of requiredStrings) {
+      if (typeof row[field] !== "string" || !String(row[field]).trim()) throw new PairedImportError("EXTERNAL_JSONL_INVALID", `Line ${lineNum}: Field '${field}' must be a non-empty string.`);
+    }
+    for (const field of ["board_id", "class_id", "subject_id"] as const) {
+      if (String(row[field]).trim().toLowerCase() !== String(scope[field]).trim().toLowerCase()) throw new PairedImportError("EXTERNAL_JSONL_INVALID", `Line ${lineNum}: Scope mismatch for '${field}'. File has '${row[field]}', selected dropdown has '${scope[field]}'.`);
+    }
+    if ((typeof row.topic_no !== "string" && typeof row.topic_no !== "number") || !String(row.topic_no).trim()) throw new PairedImportError("EXTERNAL_JSONL_INVALID", `Line ${lineNum}: Field 'topic_no' must be a non-empty string or number.`);
+    if (!Number.isInteger(row.chunk_order) || (row.chunk_order as number) < 0) throw new PairedImportError("EXTERNAL_JSONL_INVALID", `Line ${lineNum}: Field 'chunk_order' must be a non-negative integer.`);
+    if (!Array.isArray(row.expected_questions) || !row.expected_questions.every((item) => typeof item === "string" && item.trim())) throw new PairedImportError("EXTERNAL_JSONL_INVALID", `Line ${lineNum}: Field 'expected_questions' must be an array of non-empty strings.`);
+    if (!Array.isArray(row.visuals)) throw new PairedImportError("EXTERNAL_JSONL_INVALID", `Line ${lineNum}: Field 'visuals' must be an array.`);
+    const currentChapter = String(row.chapter_id).trim().toLowerCase();
+    chapter ??= currentChapter; if (chapter !== currentChapter) throw new PairedImportError("EXTERNAL_JSONL_SCOPE_MISMATCH", `Line ${lineNum}: Chapter ID '${row.chapter_id}' does not match first row chapter ID '${chapter}'.`);
     const seen = new Set<string>();
     for (const visual of row.visuals) {
-      if (!visual || typeof visual !== "object" || Array.isArray(visual)) throw new PairedImportError("EXTERNAL_JSONL_INVALID");
+      if (!visual || typeof visual !== "object" || Array.isArray(visual)) throw new PairedImportError("EXTERNAL_JSONL_INVALID", `Line ${lineNum}: Each visual item must be an object.`);
       const candidate = visual as Record<string, unknown>;
-      if ("storage_key" in candidate || typeof candidate.visual_id !== "string" || !candidate.visual_id.trim() || seen.has(candidate.visual_id.trim()) || !VISUAL_TYPES.has(String(candidate.visual_type)) || typeof candidate.title !== "string" || !candidate.title.trim() || typeof candidate.description !== "string" || !candidate.description.trim()) throw new PairedImportError("EXTERNAL_JSONL_VISUAL_INVALID");
+      if ("storage_key" in candidate) throw new PairedImportError("EXTERNAL_JSONL_VISUAL_INVALID", `Line ${lineNum}: Visual '${candidate.visual_id}' cannot contain 'storage_key'.`);
+      if (typeof candidate.visual_id !== "string" || !candidate.visual_id.trim()) throw new PairedImportError("EXTERNAL_JSONL_VISUAL_INVALID", `Line ${lineNum}: Visual missing valid string 'visual_id'.`);
+      if (seen.has(candidate.visual_id.trim())) throw new PairedImportError("EXTERNAL_JSONL_VISUAL_INVALID", `Line ${lineNum}: Duplicate visual_id '${candidate.visual_id}' in row.`);
+      if (!VISUAL_TYPES.has(String(candidate.visual_type))) throw new PairedImportError("EXTERNAL_JSONL_VISUAL_INVALID", `Line ${lineNum}: Invalid visual_type '${candidate.visual_type}'. Valid types: ${[...VISUAL_TYPES].join(", ")}.`);
+      if (typeof candidate.title !== "string" || !candidate.title.trim()) throw new PairedImportError("EXTERNAL_JSONL_VISUAL_INVALID", `Line ${lineNum}: Visual '${candidate.visual_id}' missing 'title'.`);
+      if (typeof candidate.description !== "string" || !candidate.description.trim()) throw new PairedImportError("EXTERNAL_JSONL_VISUAL_INVALID", `Line ${lineNum}: Visual '${candidate.visual_id}' missing 'description'.`);
       seen.add(candidate.visual_id.trim());
     }
     chunks.push(row as ExternalChunk);
   }
-  if (!chunks.length) throw new PairedImportError("EXTERNAL_JSONL_INVALID");
+  if (!chunks.length) throw new PairedImportError("EXTERNAL_JSONL_INVALID", "No valid JSONL chunk rows found in file.");
   return chunks;
 }
 

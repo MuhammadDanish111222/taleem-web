@@ -15,7 +15,10 @@ function safeMessage(error: unknown, stage: ImportStage) {
   if (error instanceof Error && error.message === "UNAUTHENTICATED") return ["Unauthenticated", 401] as const;
   if (error instanceof Error && error.message === "UNAUTHORIZED") return ["Unauthorized", 403] as const;
   if (error instanceof DomainError && error.code === "FORBIDDEN") return ["Forbidden", 403] as const;
-  if (error instanceof PairedImportError) return ["Paired import validation failed", 400, error.code] as const;
+  if (error instanceof PairedImportError) {
+    const detail = error.message !== error.code ? `: ${error.message}` : "";
+    return [`Paired import validation failed (${error.code}${detail})`, 400, error.code] as const;
+  }
   const status = typeof (error as { status?: unknown })?.status === "number" ? (error as { status: number }).status : 500;
   return ["Paired import failed", status, `PAIRED_IMPORT_${stage.toUpperCase()}_FAILED`] as const;
 }

@@ -34,6 +34,11 @@ describe("paired JSONL validation and enrichment", () => {
     const result = enrichExternalChunks(chunks, cards, new Map([["Unit1_Visual_001", "drive-private-key"]])); const row = JSON.parse(result.enriched);
     expect(row.content_type).toBe("explanation"); expect(row.visuals[0].storage_key).toBe("drive-private-key"); expect(result.unused).toEqual([]);
   });
+  it("accepts case-insensitive scope fields in JSONL", async () => {
+    const jsonl = JSON.stringify({ board_id: "Punjab", class_id: "9", subject_id: "Chemistry", chapter_id: "chapter-1", topic_no: "1", topic_title: "Topic", chunk_order: 0, chunk_text: "Text", expected_questions: ["Question?"], visuals: [] });
+    const chunks = validateExternalJsonl(jsonl, { board_id: "punjab", class_id: "9", subject_id: "chemistry" });
+    expect(chunks.length).toBe(1);
+  });
   it("accepts empty visuals and reports unused DOCX assets", async () => { const cards = await parseVisualExtractsDocx(await fixture()); const chunks = validateExternalJsonl(external(), scope); const result = enrichExternalChunks(chunks, cards, new Map()); expect(result.unused).toEqual(["Unit1_Visual_001"]); });
   it("uses a semantic hash that ignores JSON formatting but changes with persisted content", async () => {
     const cards = await parseVisualExtractsDocx(await fixture());
