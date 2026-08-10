@@ -126,14 +126,14 @@ export default function RagAdminClient() {
   async function pairedImport(event: FormEvent) {
     event.preventDefault();
     if (!scopeComplete) { setStatus("Select board, class, and subject first."); return; }
-    if (!jsonlFile && !visualDocxFile) { setStatus("Upload a JSONL file, a Visual DOCX file, or both."); return; }
+    if (!jsonlFile) { setStatus("Upload a JSONL file."); return; }
     setBusy(true); setStatus("Validating chapter files locally before queueing…"); setImportSummary(null);
     try {
       const data = new FormData();
       data.set("board_id", scope.board_id);
       data.set("class_id", scope.class_id);
       data.set("subject_id", scope.subject_id);
-      if (jsonlFile) data.set("jsonl", jsonlFile);
+      data.set("jsonl", jsonlFile);
       if (visualDocxFile) data.set("visual_docx", visualDocxFile);
 
       const response = await fetch("/api/admin/rag/paired-import", { method: "POST", credentials: "same-origin", headers: { "X-CSRF-Token": await csrf() }, body: data });
@@ -181,6 +181,7 @@ export default function RagAdminClient() {
   }
 
   const activeVersion = versions.find((v) => v.status === "active");
+  const qaReadyVersion = versions.find((v) => v.status === "qa_ready");
 
   return (
     <div className="max-w-6xl p-8 text-slate-100">
@@ -210,6 +211,22 @@ export default function RagAdminClient() {
       </form>
 
       <p role="status" className="mt-4 text-sm font-medium text-cyan-400">{status}</p>
+
+      {/* First Publication Box */}
+      {scopeComplete && !activeVersion && qaReadyVersion && (
+        <div className="mt-6 flex items-center justify-between rounded-lg border border-amber-800 bg-amber-950/60 p-4 shadow">
+          <div>
+            <h3 className="font-semibold text-amber-200">First Chapter Ready for Publication</h3>
+            <p className="text-xs text-amber-300">Publish this initial subject version to enable student RAG retrieval.</p>
+          </div>
+          <button
+            onClick={() => void request("activate", qaReadyVersion.id).then(refresh)}
+            className="rounded bg-amber-600 px-4 py-2 text-xs font-semibold text-white hover:bg-amber-500"
+          >
+            Publish to Students
+          </button>
+        </div>
+      )}
 
       {/* Chapter List */}
       {scopeComplete && (
@@ -255,11 +272,11 @@ export default function RagAdminClient() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
           <div className="w-full max-w-lg rounded-lg border border-slate-700 bg-slate-900 p-6 shadow-xl">
             <h3 className="text-lg font-bold">{targetChapter ? `Replace Chapter ${targetChapter}` : "Add New Chapter"}</h3>
-            <p className="mt-1 text-xs text-slate-400">Upload JSONL text chunks and optional Visual Extracts DOCX file.</p>
+            <p className="mt-1 text-xs text-slate-400">Supported modes: JSONL-only (reuses existing DB visuals) or JSONL + Visual Extracts DOCX.</p>
             <form className="mt-4 space-y-4" onSubmit={(e) => void pairedImport(e)}>
               <div>
-                <label className="block text-xs font-medium">Chapter JSONL (Optional if DOCX only)</label>
-                <input accept=".jsonl,application/json,text/plain" type="file" onChange={(e) => setJsonlFile(e.target.files?.[0] || null)} className="mt-1 block w-full text-xs text-slate-300" />
+                <label className="block text-xs font-medium">Chapter JSONL (Required)</label>
+                <input required accept=".jsonl,application/json,text/plain" type="file" onChange={(e) => setJsonlFile(e.target.files?.[0] || null)} className="mt-1 block w-full text-xs text-slate-300" />
               </div>
               <div>
                 <label className="block text-xs font-medium">Visual Extracts DOCX (Optional if JSONL reuses DB visuals)</label>
@@ -267,7 +284,7 @@ export default function RagAdminClient() {
               </div>
               <div className="mt-6 flex justify-end gap-2">
                 <button type="button" onClick={() => setShowUploadModal(false)} className="rounded border border-slate-700 px-4 py-2 text-xs">Cancel</button>
-                <button disabled={busy || (!jsonlFile && !visualDocxFile)} className="rounded bg-emerald-600 px-4 py-2 text-xs font-medium text-white hover:bg-emerald-500">
+                <button disabled={busy || !jsonlFile} className="rounded bg-emerald-600 px-4 py-2 text-xs font-medium text-white hover:bg-emerald-500">
                   {busy ? "Processing..." : targetChapter ? "Validate & Replace" : "Validate & Upload"}
                 </button>
               </div>
@@ -287,7 +304,7 @@ export default function RagAdminClient() {
             <input required value={qaQuestion} onChange={(e) => setQaQuestion(e.target.value)} placeholder={`Ask a question about Chapter ${testChapter}...`} className={`flex-1 ${fieldClass}`} />
             <button disabled={busy || !qaQuestion.trim() || !activeVersion} className="rounded bg-blue-700 px-4 py-2 text-sm font-medium text-white">Run Test</button>
           </form>
-          {!activeVersion && <p className="mt-2 text-xs text-amber-400">Chapter must finish embedding before student testing is available.</p>}
+          {!activeVersion && <p className="mt-2 text-xs text-amber-400">Chapter must finish embedding and be published before student testing is available.</p>}
           {qaSearchStatus && <p role="status" className="mt-2 text-xs text-slate-300">{qaSearchStatus}</p>}
           {qaResult && (
             <ol className="mt-4 space-y-3 text-sm">

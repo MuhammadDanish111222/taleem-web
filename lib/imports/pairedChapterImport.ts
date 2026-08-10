@@ -230,6 +230,7 @@ export function sourceHash(
   chunks: ExternalChunk[],
   cards: Map<string, VisualCard>,
   scope: { board_id: string; class_id: string; subject_id: string },
+  existingVisuals?: Map<string, { visual_id: string; title: string; description: string; storage_key: string }>,
 ) {
   const canonicalChunks = chunks.map((chunk) => ({
     board_id: chunk.board_id,
@@ -244,13 +245,19 @@ export function sourceHash(
     visuals: chunk.visuals.map((visual) => {
       const visualId = visual.visual_id.trim();
       const card = cards.get(visualId);
-      if (!card) throw new PairedImportError("EXTERNAL_VISUAL_UNKNOWN");
+      const existing = existingVisuals?.get(visualId);
+      if (!card && !existing) {
+        throw new PairedImportError("EXTERNAL_VISUAL_UNKNOWN", `Missing visual ${visualId}. Upload the visual DOCX or remove this reference.`);
+      }
+      const title = card ? card.title : existing!.title;
+      const description = card ? card.description : existing!.description;
+      const image_hash = card ? card.imageHash : existing!.storage_key;
       return {
         visual_id: visualId,
         visual_type: visual.visual_type,
-        title: normalized(card.title),
-        description: normalized(card.description),
-        image_hash: card.imageHash,
+        title: normalized(title),
+        description: normalized(description),
+        image_hash,
       };
     }),
   }));

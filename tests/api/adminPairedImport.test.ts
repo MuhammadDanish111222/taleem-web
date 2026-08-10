@@ -15,9 +15,17 @@ vi.mock("@/lib/security/adminWrite", () => ({ validateAdminWriteRequest: vi.fn()
 vi.mock("@/lib/internalApi/callAiService", () => ({ callAiService: vi.fn() }));
 vi.mock("@/lib/storage/googleDriveProvider", () => ({ GoogleDriveProvider: vi.fn(function GoogleDriveProvider() {}) }));
 vi.mock("@/lib/imports/pairedChapterImport", () => ({
-  PairedImportError: class PairedImportError extends Error { code = "TEST"; },
-  validateExternalJsonl: vi.fn(() => [{ visuals: [] }]), parseVisualExtractsDocx: vi.fn(async () => new Map()),
-  enrichExternalChunks: vi.fn(() => ({ enriched: '{"internal":true}', referenced: new Set(), unused: [] })), sourceHash: vi.fn(() => "a".repeat(64)),
+  PairedImportError: class PairedImportError extends Error {
+    code: string;
+    constructor(code: string, message?: string) {
+      super(message);
+      this.code = code;
+    }
+  },
+  validateExternalJsonl: vi.fn(() => [{ chapter_id: "ch01", visuals: [] }]),
+  parseVisualExtractsDocx: vi.fn(async () => new Map()),
+  enrichExternalChunks: vi.fn(() => ({ enriched: '{"internal":true}', referenced: new Set(), unused: [] })),
+  sourceHash: vi.fn(() => "a".repeat(64)),
 }));
 
 describe("paired chapter import BFF security", () => {
@@ -49,6 +57,15 @@ describe("paired chapter import BFF security", () => {
     const response = await POST(request);
     expect(response.status).toBe(403); expect(request.formData).not.toHaveBeenCalled(); expect(callAiService).not.toHaveBeenCalled();
   });
+  it("rejects request missing required JSONL file", async () => {
+    const form = new FormData();
+    form.set("board_id", "b"); form.set("class_id", "c"); form.set("subject_id", "s");
+    form.set("visual_docx", new File(["PK\x03\x04"], "visuals.docx", { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" }));
+    const response = await POST(new NextRequest("http://localhost/api/admin/rag/paired-import", { method: "POST", body: form }));
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body.code).toBe("PAIRED_IMPORT_FILE_MISSING");
+  });
   it("never returns enriched JSONL or storage keys", async () => {
     const form = new FormData(); form.set("board_id", "b"); form.set("class_id", "c"); form.set("subject_id", "s"); form.set("jsonl", new File(["{}"], "chapter.jsonl")); form.set("visual_docx", new File(["PK\x03\x04"], "visuals.docx", { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" }));
     const request = new NextRequest("http://localhost/api/admin/rag/paired-import", { method: "POST", body: form });
@@ -60,6 +77,7 @@ describe("paired chapter import BFF security", () => {
       return { uploadPairedVisual: upload } as any;
     } as any);
     vi.mocked(callAiService).mockImplementation(async (endpoint) => {
+      if (endpoint === "/api/v1/internal/admin/rag") return [];
       if (endpoint === "/api/v1/internal/paired-import/status") {
         return { found: true, import_status: "queued", job_id: "job-existing", job_status: "succeeded", job_stage: "completed", progress: 100 };
       }
@@ -71,7 +89,7 @@ describe("paired chapter import BFF security", () => {
     expect(response.status).toBe(200);
     expect(body.data).toMatchObject({ duplicate: true, job_id: "job-existing", job_status: "succeeded" });
     expect(upload).not.toHaveBeenCalled();
-    expect(callAiService).toHaveBeenCalledTimes(1);
+    expect(callAiService).toHaveBeenCalledTimes(2);
   });
   it("directly ingests chapter into temporary building scope without cloning active subject", async () => {
     const calls: Array<{ endpoint: string; body: any }> = [];
@@ -95,7 +113,7 @@ describe("paired chapter import BFF security", () => {
   it("compensates only newly created Drive objects when enqueue fails", async () => {
     const upload = vi.fn().mockResolvedValue({ storageKey: "private-drive-key", created: true }); const remove = vi.fn().mockResolvedValue(undefined);
     vi.mocked(GoogleDriveProvider).mockImplementation(function GoogleDriveProvider() { return { uploadPairedVisual: upload, delete: remove } as any; } as any);
-    vi.mocked(paired.validateExternalJsonl).mockReturnValue([{ visuals: [{ visual_id: "v1" }] }] as any);
+    vi.mocked(paired.validateExternalJsonl).mockReturnValue([{ chapter_id: "ch01", visuals: [{ visual_id: "v1" }] }] as any);
     vi.mocked(paired.parseVisualExtractsDocx).mockResolvedValue(new Map([["v1", { imageHash: "b".repeat(64), image: Buffer.from("image"), mimeType: "image/png" }]]) as any);
     vi.mocked(paired.enrichExternalChunks).mockReturnValue({ enriched: "private-drive-key", referenced: new Set(["v1"]), unused: [] });
     vi.mocked(callAiService).mockImplementation(async (endpoint) => { if (endpoint === "/api/v1/internal/paired-import/status") return { found: false }; if (endpoint === "/api/v1/internal/ingest/jsonl") { const error: any = new Error("service failure"); error.status = 503; throw error; } return { status: "ok" }; });
@@ -106,7 +124,7 @@ describe("paired chapter import BFF security", () => {
   it("does not delete an existing content-addressed Drive object when retry enqueue fails", async () => {
     const upload = vi.fn().mockResolvedValue({ storageKey: "existing-private-key", created: false }); const remove = vi.fn();
     vi.mocked(GoogleDriveProvider).mockImplementation(function GoogleDriveProvider() { return { uploadPairedVisual: upload, delete: remove } as any; } as any);
-    vi.mocked(paired.validateExternalJsonl).mockReturnValue([{ visuals: [{ visual_id: "v1" }] }] as any);
+    vi.mocked(paired.validateExternalJsonl).mockReturnValue([{ chapter_id: "ch01", visuals: [{ visual_id: "v1" }] }] as any);
     vi.mocked(paired.parseVisualExtractsDocx).mockResolvedValue(new Map([["v1", { imageHash: "b".repeat(64), image: Buffer.from("image"), mimeType: "image/png" }]]) as any);
     vi.mocked(paired.enrichExternalChunks).mockReturnValue({ enriched: "existing-private-key", referenced: new Set(["v1"]), unused: [] });
     vi.mocked(callAiService).mockImplementation(async (endpoint) => { if (endpoint === "/api/v1/internal/paired-import/status") return { found: false }; if (endpoint === "/api/v1/internal/ingest/jsonl") { const error: any = new Error("service failure"); error.status = 503; throw error; } return { status: "ok" }; });

@@ -51,30 +51,54 @@ export async function POST(request: NextRequest) {
     const jsonlFile = jsonlVal instanceof File && jsonlVal.size > 0 ? jsonlVal : null;
     const docxFile = docxVal instanceof File && docxVal.size > 0 ? docxVal : null;
 
-    if (!jsonlFile && !docxFile) {
-      throw new PairedImportError("PAIRED_IMPORT_FILE_MISSING", "Upload JSONL file, Visual DOCX file, or both.");
+    if (!jsonlFile) {
+      throw new PairedImportError("PAIRED_IMPORT_FILE_MISSING", "JSONL file is required.");
     }
-    if (jsonlFile && !jsonlFile.name.toLowerCase().endsWith(".jsonl")) {
+    if (!jsonlFile.name.toLowerCase().endsWith(".jsonl")) {
       throw new PairedImportError("PAIRED_IMPORT_FILE_TYPE_INVALID", "JSONL file must end with .jsonl");
     }
     if (docxFile && !docxFile.name.toLowerCase().endsWith(".docx")) {
       throw new PairedImportError("PAIRED_IMPORT_FILE_TYPE_INVALID", "Visual file must end with .docx");
     }
-    if ((jsonlFile && jsonlFile.size > 5 * 1024 * 1024) || (docxFile && docxFile.size > 25 * 1024 * 1024)) {
+    if (jsonlFile.size > 5 * 1024 * 1024 || (docxFile && docxFile.size > 25 * 1024 * 1024)) {
       throw new PairedImportError("PAIRED_IMPORT_FILE_TOO_LARGE");
     }
 
+    const jsonlBytes = Buffer.from(await jsonlFile.arrayBuffer());
     let jsonl = "";
-    if (jsonlFile) {
-      const jsonlBytes = Buffer.from(await jsonlFile.arrayBuffer());
-      try { jsonl = new TextDecoder("utf-8", { fatal: true }).decode(jsonlBytes); } catch { throw new PairedImportError("EXTERNAL_JSONL_INVALID"); }
-    }
+    try { jsonl = new TextDecoder("utf-8", { fatal: true }).decode(jsonlBytes); } catch { throw new PairedImportError("EXTERNAL_JSONL_INVALID"); }
 
     const cards = docxFile ? await parseVisualExtractsDocx(Buffer.from(await docxFile.arrayBuffer())) : new Map<string, VisualCard>();
     stage = "preflight";
 
-    const chunks = jsonl ? validateExternalJsonl(jsonl, scope) : [];
-    const importHash = sourceHash(chunks, cards, scope); audit = { uid: session.uid, importHash, scope };
+    const chunks = validateExternalJsonl(jsonl, scope);
+    const chapterId = chunks[0]?.chapter_id;
+
+    const existingVisuals = new Map<string, { visual_id: string; title: string; description: string; storage_key: string }>();
+    if (chapterId) {
+      try {
+        const insp = await callAiService(
+          "/api/v1/internal/admin/rag",
+          "POST",
+          { operation: "get_chapter_visuals", ...scope, chapter_id: chapterId },
+          session.uid,
+          true,
+          "local_rag_admin",
+          { requestId: request.headers.get("x-request-id") ?? undefined },
+        ) as Array<{ visual_id: string; title: string; description: string; storage_key: string }>;
+        if (Array.isArray(insp)) {
+          for (const item of insp) {
+            if (item.visual_id) {
+              existingVisuals.set(item.visual_id, item);
+            }
+          }
+        }
+      } catch {
+        // Active version might not exist yet for first subject upload
+      }
+    }
+
+    const importHash = sourceHash(chunks, cards, scope, existingVisuals); audit = { uid: session.uid, importHash, scope };
 
     const prior = await callAiService(
       "/api/v1/internal/paired-import/status",
@@ -118,45 +142,6 @@ export async function POST(request: NextRequest) {
         },
         { status: prior.job_status === "succeeded" ? 200 : 202 },
       );
-    }
-
-    const overview = await callAiService(
-      "/api/v1/internal/admin/rag",
-      "POST",
-      { operation: "overview", ...scope },
-      session.uid,
-      true,
-      "local_rag_admin",
-      { requestId: request.headers.get("x-request-id") ?? undefined },
-    ) as { versions?: Array<{ id?: unknown; status?: unknown }> };
-    const versions = Array.isArray(overview.versions) ? overview.versions : [];
-    const activeVersion = versions.find(
-      (version) => version.status === "active" && typeof version.id === "string",
-    );
-
-    const existingVisuals = new Map<string, { visual_id: string; title: string; description: string; storage_key: string }>();
-    if (activeVersion && typeof activeVersion.id === "string") {
-      const insp = await callAiService(
-        "/api/v1/internal/admin/rag",
-        "POST",
-        { operation: "inspect_version", ...scope, corpus_version_id: activeVersion.id },
-        session.uid,
-        true,
-        "local_rag_admin",
-        { requestId: request.headers.get("x-request-id") ?? undefined },
-      ) as { visuals?: Array<{ visual_id: string; title: string; description: string; storage_provider?: string }> };
-      if (Array.isArray(insp.visuals)) {
-        for (const item of insp.visuals) {
-          if (item.visual_id) {
-            existingVisuals.set(item.visual_id, {
-              visual_id: item.visual_id,
-              title: item.title,
-              description: item.description,
-              storage_key: item.visual_id,
-            });
-          }
-        }
-      }
     }
 
     const preflight = enrichExternalChunks(chunks, cards, new Map([...cards.keys()].map((id) => [id, "internal-preflight"])), existingVisuals);
