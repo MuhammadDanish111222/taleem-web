@@ -124,6 +124,46 @@ describe("paired JSONL validation and enrichment", () => {
       expect((error as PairedImportError).code).toBe("EXTERNAL_VISUAL_UNKNOWN");
     }
   });
+  it("computes different sourceHash when JSONL visual metadata changes while reusing same image", () => {
+    const existing = new Map([
+      ["v1", { visual_id: "v1", visual_type: "diagram", title: "Old Title", description: "Old Description", storage_key: "drive-key-v1", review_status: "approved", display_policy: "llm_decide" }],
+    ]);
+
+    const jsonlA = JSON.stringify({
+      board_id: "FBISE", class_id: "Class-9", subject_id: "Chemistry", chapter_id: "ch01",
+      topic_no: "1.1", topic_title: "Cells", chunk_order: 0,
+      chunk_text: "Cells are the basic unit of life.", expected_questions: ["What is a cell?"],
+      visuals: [{ visual_id: "v1", visual_type: "diagram", title: "Old Title", description: "Old Description" }],
+    });
+    const jsonlB = JSON.stringify({
+      board_id: "FBISE", class_id: "Class-9", subject_id: "Chemistry", chapter_id: "ch01",
+      topic_no: "1.1", topic_title: "Cells", chunk_order: 0,
+      chunk_text: "Cells are the basic unit of life.", expected_questions: ["What is a cell?"],
+      visuals: [{ visual_id: "v1", visual_type: "diagram", title: "New Title", description: "New Description" }],
+    });
+    const jsonlBWhitespace = JSON.stringify({
+      board_id: "  FBISE  ", class_id: "  Class-9  ", subject_id: "  Chemistry  ", chapter_id: "  ch01  ",
+      topic_no: "  1.1  ", topic_title: "  Cells  ", chunk_order: 0,
+      chunk_text: "  Cells are the basic unit of life.  ", expected_questions: ["  What is a cell?  "],
+      visuals: [{ visual_id: "  v1  ", visual_type: "diagram", title: "  New Title  ", description: "  New Description\r\n" }],
+    });
+
+    const chunksA = validateExternalJsonl(jsonlA, scope);
+    const chunksB = validateExternalJsonl(jsonlB, scope);
+    const chunksBWhitespace = validateExternalJsonl(jsonlBWhitespace, scope);
+
+    const hashA = sourceHash(chunksA, new Map(), scope, existing);
+    const hashB = sourceHash(chunksB, new Map(), scope, existing);
+    const hashBWhitespace = sourceHash(chunksBWhitespace, new Map(), scope, existing);
+
+    // Hash must differ when visual metadata changes even with same image
+    expect(hashA).not.toBe(hashB);
+    // Hash must be identical for whitespace-only equivalent metadata
+    expect(hashB).toBe(hashBWhitespace);
+    // Hash must be identical when recomputing on unchanged JSONL and unchanged existing visual
+    const hashARecomputed = sourceHash(validateExternalJsonl(jsonlA, scope), new Map(), scope, existing);
+    expect(hashA).toBe(hashARecomputed);
+  });
   it.each([
     external([{ visual_id: "unknown", visual_type: "figure", title: "Blue half", description: "Cropped blue image" }]),
     external([{ visual_id: "Unit1_Visual_001", visual_type: "bad", title: "Blue half", description: "Cropped blue image" }]),

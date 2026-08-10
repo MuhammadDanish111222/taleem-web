@@ -255,11 +255,16 @@ export function sourceHash(
   scope: { board_id: string; class_id: string; subject_id: string },
   existingVisuals?: Map<string, ExistingVisualInfo>,
 ) {
+  const canonicalScope = {
+    board_id: String(scope.board_id).trim().toLowerCase(),
+    class_id: String(scope.class_id).trim().toLowerCase(),
+    subject_id: String(scope.subject_id).trim().toLowerCase(),
+  };
   const canonicalChunks = chunks.map((chunk) => ({
-    board_id: chunk.board_id,
-    class_id: chunk.class_id,
-    subject_id: chunk.subject_id,
-    chapter_id: chunk.chapter_id,
+    board_id: String(chunk.board_id).trim().toLowerCase(),
+    class_id: String(chunk.class_id).trim().toLowerCase(),
+    subject_id: String(chunk.subject_id).trim().toLowerCase(),
+    chapter_id: String(chunk.chapter_id).trim().toLowerCase(),
     topic_no: String(chunk.topic_no).trim(),
     topic_title: normalized(chunk.topic_title),
     chunk_order: chunk.chunk_order,
@@ -272,19 +277,29 @@ export function sourceHash(
       if (!card && !existing) {
         throw new PairedImportError("EXTERNAL_VISUAL_UNKNOWN", `Missing visual ${visualId}. Upload the visual DOCX or remove this reference.`);
       }
-      const title = card ? card.title : existing!.title;
-      const description = card ? card.description : existing!.description;
+      const title = normalized(card ? card.title : visual.title);
+      const description = normalized(card ? card.description : visual.description);
       const image_hash = card ? card.imageHash : existing!.storage_key;
+
+      let review_status = "approved";
+      let display_policy = "llm_decide";
+      if (!card && existing) {
+        review_status = existing.review_status || "approved";
+        display_policy = existing.display_policy || "llm_decide";
+      }
+
       return {
         visual_id: visualId,
-        visual_type: visual.visual_type,
-        title: normalized(title),
-        description: normalized(description),
+        visual_type: String(visual.visual_type).trim(),
+        title,
+        description,
         image_hash,
+        review_status,
+        display_policy,
       };
     }),
   }));
   return createHash("sha256")
-    .update(JSON.stringify({ scope, chunks: canonicalChunks }))
+    .update(JSON.stringify({ scope: canonicalScope, chunks: canonicalChunks }))
     .digest("hex");
 }
