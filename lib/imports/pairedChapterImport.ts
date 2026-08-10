@@ -179,7 +179,7 @@ export function validateExternalJsonl(source: string, scope: { board_id: string;
 export function enrichExternalChunks(chunks: ExternalChunk[], cards: Map<string, VisualCard>, storageKeys: Map<string, string>) {
   const referenced = new Set<string>();
   const enriched = chunks.map((chunk) => ({
-    board_id: chunk.board_id, class_id: chunk.class_id, subject_id: chunk.subject_id, chapter_id: chunk.chapter_id,
+    board_id: String(chunk.board_id).trim().toLowerCase(), class_id: String(chunk.class_id).trim().toLowerCase(), subject_id: String(chunk.subject_id).trim().toLowerCase(), chapter_id: String(chunk.chapter_id).trim().toLowerCase(),
     topic_no: String(chunk.topic_no).trim(), topic_title: normalized(chunk.topic_title), chunk_order: chunk.chunk_order,
     content_type: "explanation", chunk_text: chunk.chunk_text, expected_questions: chunk.expected_questions,
     visuals: chunk.visuals.map((visual) => {
