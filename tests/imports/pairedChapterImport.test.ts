@@ -54,7 +54,7 @@ describe("paired JSONL validation and enrichment", () => {
   });
   it("unchanged approved visual remains approved after JSONL-only replacement", () => {
     const existing = new Map([
-      ["v1", { visual_id: "v1", visual_type: "diagram", title: "Cell Diagram", description: "Eukaryotic cell structure", storage_key: "drive-key-v1", review_status: "approved", display_policy: "always_show" }],
+      ["v1", { visual_id: "v1", visual_type: "diagram", title: "Cell Diagram", description: "Eukaryotic cell structure", storage_key: "drive-key-v1", review_status: "approved", display_policy: "always" }],
     ]);
     const chunks = validateExternalJsonl(JSON.stringify({
       board_id: "FBISE", class_id: "Class-9", subject_id: "Chemistry", chapter_id: "ch01",
@@ -67,7 +67,7 @@ describe("paired JSONL validation and enrichment", () => {
     const visual = enrichedRow.visuals[0];
     expect(visual.storage_key).toBe("drive-key-v1");
     expect(visual.review_status).toBe("approved");
-    expect(visual.display_policy).toBe("always_show");
+    expect(visual.display_policy).toBe("always");
     expect(visual.title).toBe("Cell Diagram");
     expect(visual.description).toBe("Eukaryotic cell structure");
   });
