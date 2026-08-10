@@ -73,12 +73,12 @@ describe("paired chapter import BFF security", () => {
     expect(upload).not.toHaveBeenCalled();
     expect(callAiService).toHaveBeenCalledTimes(1);
   });
-  it("automatically creates an editable copy before importing a new chapter after activation", async () => {
+  it("directly ingests chapter into temporary building scope without cloning active subject", async () => {
     const calls: Array<{ endpoint: string; body: any }> = [];
     vi.mocked(callAiService).mockImplementation(async (endpoint, _method, body) => {
       calls.push({ endpoint, body });
       if (endpoint === "/api/v1/internal/paired-import/status") return { found: false };
-      if (endpoint === "/api/v1/internal/admin/rag" && body.operation === "overview") {
+      if (endpoint === "/api/v1/internal/admin/rag" && body?.operation === "overview") {
         return { versions: [{ id: "active-version", status: "active" }] };
       }
       if (endpoint === "/api/v1/internal/ingest/jsonl") return { status: "queued", job_id: "job-new" };
@@ -87,11 +87,10 @@ describe("paired chapter import BFF security", () => {
     const form = new FormData(); form.set("board_id", "b"); form.set("class_id", "c"); form.set("subject_id", "s"); form.set("jsonl", new File(["{}"], "chapter.jsonl")); form.set("visual_docx", new File(["PK\x03\x04"], "visuals.docx", { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" }));
     const response = await POST(new NextRequest("http://localhost/api/admin/rag/paired-import", { method: "POST", body: form }));
     expect(response.status).toBe(202);
-    const cloneIndex = calls.findIndex((call) => call.body.operation === "create_draft");
+    const cloneIndex = calls.findIndex((call) => call.body?.operation === "create_draft");
     const ingestIndex = calls.findIndex((call) => call.endpoint === "/api/v1/internal/ingest/jsonl");
-    expect(cloneIndex).toBeGreaterThan(-1);
-    expect(ingestIndex).toBeGreaterThan(cloneIndex);
-    expect(calls[cloneIndex].body).toMatchObject({ corpus_version_id: "active-version", board_id: "b", class_id: "c", subject_id: "s" });
+    expect(cloneIndex).toBe(-1);
+    expect(ingestIndex).toBeGreaterThan(-1);
   });
   it("compensates only newly created Drive objects when enqueue fails", async () => {
     const upload = vi.fn().mockResolvedValue({ storageKey: "private-drive-key", created: true }); const remove = vi.fn().mockResolvedValue(undefined);

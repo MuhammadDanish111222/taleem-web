@@ -176,20 +176,45 @@ export function validateExternalJsonl(source: string, scope: { board_id: string;
   return chunks;
 }
 
-export function enrichExternalChunks(chunks: ExternalChunk[], cards: Map<string, VisualCard>, storageKeys: Map<string, string>) {
+export function enrichExternalChunks(
+  chunks: ExternalChunk[],
+  cards: Map<string, VisualCard>,
+  storageKeys: Map<string, string>,
+  existingVisuals?: Map<string, { visual_id: string; title: string; description: string; storage_key: string }>,
+) {
   const referenced = new Set<string>();
   const enriched = chunks.map((chunk) => ({
-    board_id: String(chunk.board_id).trim().toLowerCase(), class_id: String(chunk.class_id).trim().toLowerCase(), subject_id: String(chunk.subject_id).trim().toLowerCase(), chapter_id: String(chunk.chapter_id).trim().toLowerCase(),
-    topic_no: String(chunk.topic_no).trim(), topic_title: normalized(chunk.topic_title), chunk_order: chunk.chunk_order,
-    content_type: "explanation", chunk_text: chunk.chunk_text, expected_questions: chunk.expected_questions,
+    board_id: String(chunk.board_id).trim().toLowerCase(),
+    class_id: String(chunk.class_id).trim().toLowerCase(),
+    subject_id: String(chunk.subject_id).trim().toLowerCase(),
+    chapter_id: String(chunk.chapter_id).trim().toLowerCase(),
+    topic_no: String(chunk.topic_no).trim(),
+    topic_title: normalized(chunk.topic_title),
+    chunk_order: chunk.chunk_order,
+    content_type: "explanation",
+    chunk_text: chunk.chunk_text,
+    expected_questions: chunk.expected_questions,
     visuals: chunk.visuals.map((visual) => {
-      const id = visual.visual_id.trim(); const card = cards.get(id); const storageKey = storageKeys.get(id);
-      if (!card) throw new PairedImportError("EXTERNAL_VISUAL_UNKNOWN");
-      if (!storageKey) throw new PairedImportError("PAIRED_IMPORT_UPLOAD_INCOMPLETE");
-      if (normalized(visual.title) !== normalized(card.title)) throw new PairedImportError("EXTERNAL_VISUAL_TITLE_MISMATCH");
-      if (normalized(visual.description) !== normalized(card.description)) throw new PairedImportError("EXTERNAL_VISUAL_DESCRIPTION_MISMATCH");
+      const id = visual.visual_id.trim();
+      const card = cards.get(id);
+      const existing = existingVisuals?.get(id);
+      const storageKey = storageKeys.get(id) || existing?.storage_key;
+      if (!card && !existing) {
+        throw new PairedImportError("EXTERNAL_VISUAL_UNKNOWN", `Missing visual ${id}. Upload the visual DOCX or remove this reference.`);
+      }
+      if (!storageKey) {
+        throw new PairedImportError("PAIRED_IMPORT_UPLOAD_INCOMPLETE");
+      }
+      const title = card ? card.title : existing!.title;
+      const description = card ? card.description : existing!.description;
+      if (card && normalized(visual.title) !== normalized(card.title)) {
+        throw new PairedImportError("EXTERNAL_VISUAL_TITLE_MISMATCH");
+      }
+      if (card && normalized(visual.description) !== normalized(card.description)) {
+        throw new PairedImportError("EXTERNAL_VISUAL_DESCRIPTION_MISMATCH");
+      }
       referenced.add(id);
-      return { visual_id: id, visual_type: visual.visual_type, title: card.title, description: card.description, storage_key: storageKey };
+      return { visual_id: id, visual_type: visual.visual_type, title: normalized(title), description: normalized(description), storage_key: storageKey };
     }),
   }));
   return { enriched: enriched.map((row) => JSON.stringify(row)).join("\n"), referenced, unused: [...cards.keys()].filter((id) => !referenced.has(id)) };

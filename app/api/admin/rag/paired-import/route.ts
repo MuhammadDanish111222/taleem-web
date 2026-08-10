@@ -4,7 +4,7 @@ import { isAdminPanelEnabled } from "@/lib/config/adminPanel";
 import { validateAdminWriteRequest } from "@/lib/security/adminWrite";
 import { callAiService } from "@/lib/internalApi/callAiService";
 import { GoogleDriveProvider } from "@/lib/storage/googleDriveProvider";
-import { PairedImportError, enrichExternalChunks, parseVisualExtractsDocx, sourceHash, validateExternalJsonl } from "@/lib/imports/pairedChapterImport";
+import { PairedImportError, VisualCard, enrichExternalChunks, parseVisualExtractsDocx, sourceHash, validateExternalJsonl } from "@/lib/imports/pairedChapterImport";
 import { DomainError } from "@/lib/services/admin/catalogueService";
 
 const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -46,17 +46,36 @@ export async function POST(request: NextRequest) {
     stage = "multipart";
     const form = await request.formData();
     const scope = { board_id: scopeValue(form, "board_id"), class_id: scopeValue(form, "class_id"), subject_id: scopeValue(form, "subject_id") };
-    const jsonlFile = fileValue(form, "jsonl"); const docxFile = fileValue(form, "visual_docx");
-    if (!jsonlFile.name.toLowerCase().endsWith(".jsonl") || !docxFile.name.toLowerCase().endsWith(".docx") || (docxFile.type && docxFile.type !== DOCX_MIME && docxFile.type !== "application/octet-stream")) throw new PairedImportError("PAIRED_IMPORT_FILE_TYPE_INVALID");
-    if (jsonlFile.size > 5 * 1024 * 1024 || docxFile.size > 25 * 1024 * 1024) throw new PairedImportError("PAIRED_IMPORT_FILE_TOO_LARGE");
-    const jsonlBytes = Buffer.from(await jsonlFile.arrayBuffer()); let jsonl: string;
-    try { jsonl = new TextDecoder("utf-8", { fatal: true }).decode(jsonlBytes); } catch { throw new PairedImportError("EXTERNAL_JSONL_INVALID"); }
-    const docx = Buffer.from(await docxFile.arrayBuffer());
+    const jsonlVal = form.get("jsonl");
+    const docxVal = form.get("visual_docx");
+    const jsonlFile = jsonlVal instanceof File && jsonlVal.size > 0 ? jsonlVal : null;
+    const docxFile = docxVal instanceof File && docxVal.size > 0 ? docxVal : null;
+
+    if (!jsonlFile && !docxFile) {
+      throw new PairedImportError("PAIRED_IMPORT_FILE_MISSING", "Upload JSONL file, Visual DOCX file, or both.");
+    }
+    if (jsonlFile && !jsonlFile.name.toLowerCase().endsWith(".jsonl")) {
+      throw new PairedImportError("PAIRED_IMPORT_FILE_TYPE_INVALID", "JSONL file must end with .jsonl");
+    }
+    if (docxFile && !docxFile.name.toLowerCase().endsWith(".docx")) {
+      throw new PairedImportError("PAIRED_IMPORT_FILE_TYPE_INVALID", "Visual file must end with .docx");
+    }
+    if ((jsonlFile && jsonlFile.size > 5 * 1024 * 1024) || (docxFile && docxFile.size > 25 * 1024 * 1024)) {
+      throw new PairedImportError("PAIRED_IMPORT_FILE_TOO_LARGE");
+    }
+
+    let jsonl = "";
+    if (jsonlFile) {
+      const jsonlBytes = Buffer.from(await jsonlFile.arrayBuffer());
+      try { jsonl = new TextDecoder("utf-8", { fatal: true }).decode(jsonlBytes); } catch { throw new PairedImportError("EXTERNAL_JSONL_INVALID"); }
+    }
+
+    const cards = docxFile ? await parseVisualExtractsDocx(Buffer.from(await docxFile.arrayBuffer())) : new Map<string, VisualCard>();
     stage = "preflight";
-    const chunks = validateExternalJsonl(jsonl, scope); const cards = await parseVisualExtractsDocx(docx);
-    // Validate every externally selected association before a private upload occurs.
-    const preflight = enrichExternalChunks(chunks, cards, new Map([...cards.keys()].map((id) => [id, "internal-preflight"])));
+
+    const chunks = jsonl ? validateExternalJsonl(jsonl, scope) : [];
     const importHash = sourceHash(chunks, cards, scope); audit = { uid: session.uid, importHash, scope };
+
     const prior = await callAiService(
       "/api/v1/internal/paired-import/status",
       "POST",
@@ -88,9 +107,9 @@ export async function POST(request: NextRequest) {
               ? "This chapter content and its visuals were already imported successfully."
               : "This exact chapter import is already being processed.",
             chunk_count: chunks.length,
-            referenced_visual_count: preflight.referenced.size,
-            unused_visual_count: preflight.unused.length,
-            warnings: preflight.unused.length ? ["Unused Visual Extracts assets were not uploaded."] : [],
+            referenced_visual_count: cards.size,
+            unused_visual_count: 0,
+            warnings: [],
             job_id: prior.job_id,
             job_status: prior.job_status,
             job_stage: prior.job_stage,
@@ -100,9 +119,7 @@ export async function POST(request: NextRequest) {
         { status: prior.job_status === "succeeded" ? 200 : 202 },
       );
     }
-    // Preserve an immutable active subject version. If this is the first new
-    // chapter after activation, create the required editable copy for the
-    // owner automatically instead of letting the background job fail later.
+
     const overview = await callAiService(
       "/api/v1/internal/admin/rag",
       "POST",
@@ -113,34 +130,50 @@ export async function POST(request: NextRequest) {
       { requestId: request.headers.get("x-request-id") ?? undefined },
     ) as { versions?: Array<{ id?: unknown; status?: unknown }> };
     const versions = Array.isArray(overview.versions) ? overview.versions : [];
-    const editableExists = versions.some(
-      (version) => version.status === "building" || version.status === "qa_ready",
-    );
     const activeVersion = versions.find(
       (version) => version.status === "active" && typeof version.id === "string",
     );
-    if (!editableExists && activeVersion && typeof activeVersion.id === "string") {
-      await callAiService(
+
+    const existingVisuals = new Map<string, { visual_id: string; title: string; description: string; storage_key: string }>();
+    if (activeVersion && typeof activeVersion.id === "string") {
+      const insp = await callAiService(
         "/api/v1/internal/admin/rag",
         "POST",
-        { operation: "create_draft", ...scope, corpus_version_id: activeVersion.id },
+        { operation: "inspect_version", ...scope, corpus_version_id: activeVersion.id },
         session.uid,
         true,
         "local_rag_admin",
         { requestId: request.headers.get("x-request-id") ?? undefined },
-      );
+      ) as { visuals?: Array<{ visual_id: string; title: string; description: string; storage_provider?: string }> };
+      if (Array.isArray(insp.visuals)) {
+        for (const item of insp.visuals) {
+          if (item.visual_id) {
+            existingVisuals.set(item.visual_id, {
+              visual_id: item.visual_id,
+              title: item.title,
+              description: item.description,
+              storage_key: item.visual_id,
+            });
+          }
+        }
+      }
     }
+
+    const preflight = enrichExternalChunks(chunks, cards, new Map([...cards.keys()].map((id) => [id, "internal-preflight"])), existingVisuals);
+
     stage = "audit";
     await callAiService("/api/v1/internal/paired-import/audit", "POST", { operation: "started", import_hash: importHash, ...scope, chunk_count: chunks.length, referenced_visual_count: preflight.referenced.size, unused_visual_count: preflight.unused.length }, session.uid, true, "local_paired_import", { requestId: request.headers.get("x-request-id") ?? undefined });
     stage = "drive";
     const drive = new GoogleDriveProvider(); const keys = new Map<string, string>();
     for (const visualId of preflight.referenced) {
-      const card = cards.get(visualId)!;
-      const stored = await drive.uploadPairedVisual({ filename: `paired-${card.imageHash}.png`, mimeType: card.mimeType, body: card.image, contentHash: card.imageHash });
-      keys.set(visualId, stored.storageKey); if (stored.created) uploadedCreatedKeys.push(stored.storageKey);
+      const card = cards.get(visualId);
+      if (card) {
+        const stored = await drive.uploadPairedVisual({ filename: `paired-${card.imageHash}.png`, mimeType: card.mimeType, body: card.image, contentHash: card.imageHash });
+        keys.set(visualId, stored.storageKey); if (stored.created) uploadedCreatedKeys.push(stored.storageKey);
+      }
     }
-    await callAiService("/api/v1/internal/paired-import/audit", "POST", { operation: "assets_uploaded", import_hash: importHash, ...scope, chunk_count: chunks.length, referenced_visual_count: preflight.referenced.size, unused_visual_count: preflight.unused.length, asset_hashes: [...preflight.referenced].map((id) => cards.get(id)!.imageHash) }, session.uid, true, "local_paired_import", { requestId: request.headers.get("x-request-id") ?? undefined });
-    const enriched = enrichExternalChunks(chunks, cards, keys);
+    await callAiService("/api/v1/internal/paired-import/audit", "POST", { operation: "assets_uploaded", import_hash: importHash, ...scope, chunk_count: chunks.length, referenced_visual_count: preflight.referenced.size, unused_visual_count: preflight.unused.length, asset_hashes: [...preflight.referenced].filter((id) => cards.has(id)).map((id) => cards.get(id)!.imageHash) }, session.uid, true, "local_paired_import", { requestId: request.headers.get("x-request-id") ?? undefined });
+    const enriched = enrichExternalChunks(chunks, cards, keys, existingVisuals);
     stage = "ingestion";
     const retrySuffix = prior.found && (prior.import_status === "failed" || prior.job_status === "failed")
       ? `:retry:${crypto.randomUUID()}`
