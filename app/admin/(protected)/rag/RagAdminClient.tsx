@@ -183,12 +183,12 @@ export default function RagAdminClient() {
   }
 
   async function runQaSearch() {
-    const activeVer = versions.find((v) => v.status === "active");
-    if (!activeVer || !qaQuestion.trim()) return;
-    setQaResult(null); setQaSearchStatus("Searching active corpus…");
+    const targetVer = versions.find((v) => v.status === "qa_ready") || versions.find((v) => v.status === "active");
+    if (!targetVer || !qaQuestion.trim()) return;
+    setQaResult(null); setQaSearchStatus("Searching corpus…");
     const result = await request(
       "qa_search",
-      activeVer.id,
+      targetVer.id,
       { question: qaQuestion.trim(), chapter_id: testChapter || "" },
       (message) => setQaSearchStatus(`QA search failed: ${message}`),
     ) as QaResult | null;
@@ -319,9 +319,9 @@ export default function RagAdminClient() {
           </div>
           <form className="mt-4 flex gap-2" onSubmit={(e) => { e.preventDefault(); void runQaSearch(); }}>
             <input required value={qaQuestion} onChange={(e) => setQaQuestion(e.target.value)} placeholder={`Ask a question about Chapter ${testChapter}...`} className={`flex-1 ${fieldClass}`} />
-            <button disabled={busy || !qaQuestion.trim() || !activeVersion} className="rounded bg-blue-700 px-4 py-2 text-sm font-medium text-white">Run Test</button>
+            <button disabled={busy || !qaQuestion.trim() || (!activeVersion && !qaReadyVersion)} className="rounded bg-blue-700 px-4 py-2 text-sm font-medium text-white">Run Test</button>
           </form>
-          {!activeVersion && <p className="mt-2 text-xs text-amber-400">Chapter must finish embedding and be published before student testing is available.</p>}
+          {!activeVersion && !qaReadyVersion && <p className="mt-2 text-xs text-amber-400">Chapter must finish embedding before testing is available.</p>}
           {qaSearchStatus && <p role="status" className="mt-2 text-xs text-slate-300">{qaSearchStatus}</p>}
           {qaResult && (
             <ol className="mt-4 space-y-3 text-sm">
