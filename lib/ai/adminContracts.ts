@@ -23,6 +23,8 @@ export const askAdminOperations = [
   "bank_set_variation_active",
   "bank_requeue_embedding",
   "bank_set_visuals",
+  "source_policy_get",
+  "source_policy_set_semantic_threshold",
 ] as const;
 
 export type AskAdminOperation = (typeof askAdminOperations)[number];
@@ -111,6 +113,7 @@ export const askAdminRequestSchema = z.object({
   reason: z.string().trim().min(1).max(1_000).optional(),
   variation: z.string().trim().min(1).max(4_000).optional(),
   active: z.boolean().optional(),
+  semantic_similarity_threshold: z.number().min(0.80).max(0.99).optional(),
   source_feature: z.literal("single_question").optional(),
   answer_source: z.enum(["approved_bank", "syllabus_grounded", "general_knowledge"]).optional(),
   provider: z.string().trim().min(1).max(120).optional(),
@@ -207,6 +210,13 @@ export const askAdminRequestSchema = z.object({
     case "bank_set_visuals":
       requireField("revision_id", "Revision ID is required");
       requireField("visual_ids", "Visual IDs are required");
+      break;
+    case "source_policy_get":
+      requireField("subject_id", "Subject ID is required");
+      break;
+    case "source_policy_set_semantic_threshold":
+      requireField("subject_id", "Subject ID is required");
+      requireField("semantic_similarity_threshold", "Semantic threshold is required");
       break;
   }
 });

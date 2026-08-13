@@ -28,6 +28,8 @@ export default function PromptAdminClient() {
   const [content, setContent] = useState("");
   const [selectedId, setSelectedId] = useState("");
   const [testQuestion, setTestQuestion] = useState("");
+  const [semanticThreshold, setSemanticThreshold] = useState("0.82");
+  const [semanticScope, setSemanticScope] = useState("");
   const [testResult, setTestResult] = useState<{
     document: unknown;
     provider: string;
@@ -59,6 +61,49 @@ export default function PromptAdminClient() {
     setNotice("");
     setError("");
   }, [boardId, classId, promptType, scopeKind, subjectId]);
+
+  async function loadSemanticThreshold() {
+    if (!subjectId.trim()) return;
+    try {
+      const result = await callAskAdmin<{
+        scope: { class_id: string | null; subject_id: string | null };
+        semantic_similarity_threshold: number;
+      }>({
+        operation: "source_policy_get",
+        subject_id: subjectId.trim(),
+        ...(scopeKind === "exact" && classId.trim() ? { class_id: classId.trim() } : {}),
+      });
+      setSemanticThreshold(String(result.semantic_similarity_threshold));
+      setSemanticScope(result.scope.class_id ? "class-specific" : "subject-global");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not load semantic threshold");
+    }
+  }
+
+  async function saveSemanticThreshold() {
+    const value = Number(semanticThreshold);
+    if (!Number.isFinite(value) || value < 0.80 || value > 0.99 || !subjectId.trim()) {
+      setError("Use a semantic threshold from 0.80 to 0.99 and provide a subject ID.");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const result = await callAskAdmin<{ semantic_similarity_threshold: number }>({
+        operation: "source_policy_set_semantic_threshold",
+        subject_id: subjectId.trim(),
+        ...(scopeKind === "exact" && classId.trim() ? { class_id: classId.trim() } : {}),
+        semantic_similarity_threshold: value,
+      });
+      setSemanticThreshold(String(result.semantic_similarity_threshold));
+      setNotice("Approved-answer semantic threshold saved.");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not save semantic threshold");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function loadHistory(preferredId = selectedId) {
     if (!scopeReady) {
@@ -203,6 +248,19 @@ export default function PromptAdminClient() {
         {scopeKind === "exact" ? <input aria-label="Board ID" className={inputClass} placeholder="Board ID" value={boardId} onChange={(event) => setBoardId(event.target.value)} /> : null}
         {scopeKind === "exact" ? <input aria-label="Class ID" className={inputClass} placeholder="Class ID" value={classId} onChange={(event) => setClassId(event.target.value)} /> : null}
         <input aria-label="Subject ID" className={inputClass} placeholder="Subject ID" value={subjectId} onChange={(event) => setSubjectId(event.target.value)} />
+      </div>
+
+      <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <h2 className="font-semibold">Approved answer semantic threshold</h2>
+        <p className="mt-1 text-sm text-slate-600">Minimum similarity required before an approved answer may be reused for a semantically similar question.</p>
+        <div className="mt-3 flex flex-wrap items-end gap-3">
+          <label className="grid gap-1 text-sm font-medium">Minimum similarity
+            <input aria-label="Approved answer semantic threshold" className={`${inputClass} w-40`} type="number" min="0.80" max="0.99" step="0.01" value={semanticThreshold} onChange={(event) => setSemanticThreshold(event.target.value)} disabled={!subjectId.trim()} />
+          </label>
+          <button type="button" onClick={() => void loadSemanticThreshold()} disabled={busy || !subjectId.trim()} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-800 disabled:opacity-50">Load current</button>
+          <button type="button" onClick={() => void saveSemanticThreshold()} disabled={busy || !subjectId.trim() || (scopeKind === "exact" && !classId.trim())} className="rounded-lg bg-indigo-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Save threshold</button>
+          <span className="pb-2 text-xs text-slate-500">Current source: {semanticScope || "not loaded"}</span>
+        </div>
       </div>
 
       {error ? <p role="alert" className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p> : null}

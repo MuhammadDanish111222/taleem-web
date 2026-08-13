@@ -111,6 +111,8 @@ describe("Module 4 local Ask admin BFF", () => {
     { operation: "bank_archive", revision_id: "33333333-3333-4333-8333-333333333333", reason: "Superseded by corrected material" },
     { operation: "bank_set_variation_active", variation_id: "44444444-4444-4444-8444-444444444444", active: false },
     { operation: "bank_requeue_embedding", revision_id: "55555555-5555-4555-8555-555555555555" },
+    { operation: "source_policy_get", subject_id: "physics" },
+    { operation: "source_policy_set_semantic_threshold", subject_id: "physics", class_id: "class-9", semantic_similarity_threshold: 0.82 },
   ] as const)("accepts and forwards the landed $operation contract", async (body) => {
     const response = await POST(request(body));
     expect(response.status).toBe(200);
@@ -144,6 +146,7 @@ describe("Module 4 local Ask admin BFF", () => {
     { operation: "bank_set_variation_active", variation_id: "44444444-4444-4444-8444-444444444444" },
     { operation: "bank_requeue_embedding" },
     { operation: "bank_set_visuals", revision_id: "55555555-5555-4555-8555-555555555555" },
+    { operation: "source_policy_set_semantic_threshold", subject_id: "physics" },
     { operation: "candidate_retention_cleanup", limit: 25 },
   ])("rejects incomplete high-impact $operation requests at the BFF", async (body) => {
     const response = await POST(request(body));
