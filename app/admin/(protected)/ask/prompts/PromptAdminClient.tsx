@@ -5,15 +5,22 @@ import type { PromptHistoryItem } from "@/lib/ai/adminContracts";
 import { callAskAdmin } from "@/lib/client/askAdmin";
 
 type PromptKey = "ask_grounded" | "ask_general";
-type AnswerMode = "short" | "long" | "mcq";
-type ScopeKind = "global" | "subject" | "class_subject" | "board_class_subject";
+type AnswerMode = "short" | "long";
+type PromptType = "rag_short" | "rag_long" | "general_short" | "general_long";
+type ScopeKind = "subject_global" | "exact";
+
+const promptTypes: Record<PromptType, { label: string; promptKey: PromptKey; answerMode: AnswerMode }> = {
+  rag_short: { label: "RAG Short", promptKey: "ask_grounded", answerMode: "short" },
+  rag_long: { label: "RAG Long", promptKey: "ask_grounded", answerMode: "long" },
+  general_short: { label: "General Short", promptKey: "ask_general", answerMode: "short" },
+  general_long: { label: "General Long", promptKey: "ask_general", answerMode: "long" },
+};
 
 const inputClass = "rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900";
 
 export default function PromptAdminClient() {
-  const [promptKey, setPromptKey] = useState<PromptKey>("ask_grounded");
-  const [answerMode, setAnswerMode] = useState<AnswerMode>("short");
-  const [scopeKind, setScopeKind] = useState<ScopeKind>("global");
+  const [promptType, setPromptType] = useState<PromptType>("rag_short");
+  const [scopeKind, setScopeKind] = useState<ScopeKind>("subject_global");
   const [boardId, setBoardId] = useState("");
   const [classId, setClassId] = useState("");
   const [subjectId, setSubjectId] = useState("");
@@ -32,16 +39,14 @@ export default function PromptAdminClient() {
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
 
+  const { promptKey, answerMode } = promptTypes[promptType];
   const scope = useMemo(() => ({
-    ...(scopeKind === "board_class_subject" ? { board_id: boardId.trim() } : {}),
-    ...(scopeKind === "class_subject" || scopeKind === "board_class_subject" ? { class_id: classId.trim() } : {}),
-    ...(scopeKind !== "global" ? { subject_id: subjectId.trim() } : {}),
+    ...(scopeKind === "exact" ? { board_id: boardId.trim(), class_id: classId.trim() } : {}),
+    subject_id: subjectId.trim(),
   }), [boardId, classId, scopeKind, subjectId]);
 
-  const scopeReady = scopeKind === "global"
-    || (scopeKind === "subject" && Boolean(subjectId.trim()))
-    || (scopeKind === "class_subject" && Boolean(classId.trim() && subjectId.trim()))
-    || (scopeKind === "board_class_subject" && Boolean(boardId.trim() && classId.trim() && subjectId.trim()));
+  const scopeReady = Boolean(subjectId.trim())
+    && (scopeKind === "subject_global" || Boolean(boardId.trim() && classId.trim()));
 
   useEffect(() => {
     // A selected prompt belongs to the exact key/mode/scope that loaded it.
@@ -53,7 +58,7 @@ export default function PromptAdminClient() {
     setTestResult(null);
     setNotice("");
     setError("");
-  }, [answerMode, boardId, classId, promptKey, scopeKind, subjectId]);
+  }, [boardId, classId, promptType, scopeKind, subjectId]);
 
   async function loadHistory(preferredId = selectedId) {
     if (!scopeReady) {
@@ -180,32 +185,24 @@ export default function PromptAdminClient() {
       <div className="mb-6">
         <p className="text-sm font-semibold uppercase tracking-wider text-indigo-600">Local-only Module 4</p>
         <h1 className="text-3xl font-bold">Prompt management</h1>
-        <p className="mt-2 text-slate-600">Versioned prompts by task, answer mode, and exact hierarchy scope. Prompt content remains server-admin data.</p>
+        <p className="mt-2 text-slate-600">Manage the four prompt types independently at an exact Board/Class/Subject scope or a Subject Global fallback. Prompt content remains server-admin data.</p>
       </div>
 
       <div className="mb-6 grid gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-3">
-        <label className="grid gap-1 text-sm font-medium">Prompt key
-          <select className={inputClass} value={promptKey} onChange={(event) => setPromptKey(event.target.value as PromptKey)}>
-            <option value="ask_grounded">Grounded Ask</option>
-            <option value="ask_general">General Ask</option>
-          </select>
-        </label>
-        <label className="grid gap-1 text-sm font-medium">Answer mode
-          <select className={inputClass} value={answerMode} onChange={(event) => setAnswerMode(event.target.value as AnswerMode)}>
-            <option value="short">Short</option><option value="long">Long</option><option value="mcq">MCQ</option>
+        <label className="grid gap-1 text-sm font-medium">Prompt type
+          <select className={inputClass} value={promptType} onChange={(event) => setPromptType(event.target.value as PromptType)}>
+            {Object.entries(promptTypes).map(([value, type]) => <option key={value} value={value}>{type.label}</option>)}
           </select>
         </label>
         <label className="grid gap-1 text-sm font-medium">Scope
           <select className={inputClass} value={scopeKind} onChange={(event) => setScopeKind(event.target.value as ScopeKind)}>
-            <option value="global">Global</option>
-            <option value="subject">Subject</option>
-            <option value="class_subject">Class + subject</option>
-            <option value="board_class_subject">Board + class + subject</option>
+            <option value="subject_global">Subject Global</option>
+            <option value="exact">Exact Board + Class + Subject</option>
           </select>
         </label>
-        {scopeKind === "board_class_subject" ? <input aria-label="Board ID" className={inputClass} placeholder="Board ID" value={boardId} onChange={(event) => setBoardId(event.target.value)} /> : null}
-        {scopeKind === "class_subject" || scopeKind === "board_class_subject" ? <input aria-label="Class ID" className={inputClass} placeholder="Class ID" value={classId} onChange={(event) => setClassId(event.target.value)} /> : null}
-        {scopeKind !== "global" ? <input aria-label="Subject ID" className={inputClass} placeholder="Subject ID" value={subjectId} onChange={(event) => setSubjectId(event.target.value)} /> : null}
+        {scopeKind === "exact" ? <input aria-label="Board ID" className={inputClass} placeholder="Board ID" value={boardId} onChange={(event) => setBoardId(event.target.value)} /> : null}
+        {scopeKind === "exact" ? <input aria-label="Class ID" className={inputClass} placeholder="Class ID" value={classId} onChange={(event) => setClassId(event.target.value)} /> : null}
+        <input aria-label="Subject ID" className={inputClass} placeholder="Subject ID" value={subjectId} onChange={(event) => setSubjectId(event.target.value)} />
       </div>
 
       {error ? <p role="alert" className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p> : null}

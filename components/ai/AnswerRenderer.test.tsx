@@ -96,7 +96,7 @@ describe("AnswerRenderer", () => {
             },
             {
               type: "heading",
-              text: "Additional textbook knowledge (optional)",
+              text: "Worked example",
               level: 3,
             },
           ],
@@ -112,7 +112,7 @@ describe("AnswerRenderer", () => {
     expect(screen.getByText("Second textbook point")).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: "Additional textbook knowledge (optional)",
+        name: "Worked example",
         level: 4,
       }),
     ).toBeInTheDocument();

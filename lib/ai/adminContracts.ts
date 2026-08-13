@@ -130,11 +130,13 @@ export const askAdminRequestSchema = z.object({
   const requirePromptScope = () => {
     requireField("prompt_key", "Prompt key is required");
     requireField("answer_mode", "Answer mode is required");
-    if (value.board_id && (!value.class_id || !value.subject_id)) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Board scope requires class and subject", path: ["board_id"] });
+    if (value.answer_mode === "mcq") {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "MCQ prompt configuration is not supported", path: ["answer_mode"] });
     }
-    if (value.class_id && !value.subject_id) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Class scope requires subject", path: ["class_id"] });
+    const exactScope = Boolean(value.board_id && value.class_id && value.subject_id);
+    const subjectGlobalScope = Boolean(value.subject_id && !value.board_id && !value.class_id);
+    if (!exactScope && !subjectGlobalScope) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Prompt scope must be exact or Subject Global", path: ["subject_id"] });
     }
   };
 

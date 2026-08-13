@@ -89,6 +89,8 @@ describe("Module 4 local Ask admin BFF", () => {
   });
 
   it.each([
+    { operation: "prompt_history", prompt_key: "ask_grounded", answer_mode: "short", subject_id: "physics" },
+    { operation: "prompt_history", prompt_key: "ask_general", answer_mode: "long", board_id: "punjab", class_id: "class-9", subject_id: "physics" },
     { operation: "prompt_update_draft", prompt_id: "11111111-1111-4111-8111-111111111111", content: "Updated draft" },
     {
       operation: "candidate_list",
@@ -152,6 +154,9 @@ describe("Module 4 local Ask admin BFF", () => {
   it.each([
     { operation: "prompt_history", prompt_key: "ask_grounded", answer_mode: "short", board_id: "punjab" },
     { operation: "prompt_history", prompt_key: "ask_grounded", answer_mode: "short", class_id: "class-9" },
+    { operation: "prompt_history", prompt_key: "ask_grounded", answer_mode: "short" },
+    { operation: "prompt_history", prompt_key: "ask_grounded", answer_mode: "short", class_id: "class-9", subject_id: "physics" },
+    { operation: "prompt_history", prompt_key: "ask_grounded", answer_mode: "mcq", subject_id: "physics" },
   ])("rejects incomplete prompt hierarchy scopes", async (body) => {
     const response = await POST(request(body));
     expect(response.status).toBe(400);

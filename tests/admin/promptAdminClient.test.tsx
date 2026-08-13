@@ -15,7 +15,7 @@ describe("PromptAdminClient", () => {
         id: "11111111-1111-4111-8111-111111111111",
         prompt_key: "ask_grounded",
         answer_mode: "short",
-        scope: { board_id: null, class_id: null, subject_id: null },
+        scope: { board_id: null, class_id: null, subject_id: "biology" },
         version: 1,
         content: "A safe grounded prompt",
         status: "draft",
@@ -27,16 +27,17 @@ describe("PromptAdminClient", () => {
     });
   });
 
-  it("clears a loaded prompt before a key, mode, or scope change can mutate it", async () => {
+  it("clears a loaded prompt before a type or scope change can mutate it", async () => {
     render(<PromptAdminClient />);
 
+    fireEvent.change(screen.getByLabelText("Subject ID"), { target: { value: "biology" } });
     fireEvent.click(screen.getByRole("button", { name: "Load history" }));
     await waitFor(() => expect(callAskAdmin).toHaveBeenCalledTimes(1));
 
     const updateButton = screen.getByRole("button", { name: "Update selected draft" }) as HTMLButtonElement;
     await waitFor(() => expect(updateButton.disabled).toBe(false));
 
-    fireEvent.change(screen.getByLabelText("Answer mode"), { target: { value: "long" } });
+    fireEvent.change(screen.getByLabelText("Prompt type"), { target: { value: "rag_long" } });
 
     await waitFor(() => expect(updateButton.disabled).toBe(true));
     expect((screen.getByLabelText("Prompt content") as HTMLTextAreaElement).value).toBe("");
