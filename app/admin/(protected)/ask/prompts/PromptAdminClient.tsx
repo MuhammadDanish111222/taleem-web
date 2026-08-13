@@ -231,7 +231,7 @@ export default function PromptAdminClient() {
           <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="font-semibold">Create or edit a draft</h2>
             <p className="mt-1 text-sm text-slate-500">Create a separate version, or update only the currently selected draft. Active and retired versions remain immutable.</p>
-            <textarea aria-label="Prompt content" className="mt-4 min-h-72 w-full rounded-lg border border-slate-300 p-3 font-mono text-sm" value={content} onChange={(event) => setContent(event.target.value)} maxLength={20000} />
+            <textarea aria-label="Prompt content" className="mt-4 min-h-72 w-full rounded-lg border border-slate-300 bg-white p-3 font-mono text-sm text-slate-900 placeholder:text-slate-400" value={content} onChange={(event) => setContent(event.target.value)} maxLength={20000} />
             <div className="mt-3 flex flex-wrap gap-2">
               <button type="button" onClick={() => void createDraft()} disabled={busy || !scopeReady || !content.trim()} className="rounded-lg bg-indigo-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Create new draft</button>
               <button type="button" onClick={() => void updateDraft()} disabled={busy || !selected || selected.status !== "draft" || !content.trim()} className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Update selected draft</button>
@@ -241,7 +241,7 @@ export default function PromptAdminClient() {
           <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="font-semibold">Test and activate selected version</h2>
             <p className="mt-1 text-sm text-slate-500">Draft tests are paid admin provider tests and do not consume student quota. They accept typed text only.</p>
-            <textarea aria-label="Prompt test question" className="mt-4 min-h-24 w-full rounded-lg border border-slate-300 p-3 text-sm" placeholder="Enter one controlled test question" value={testQuestion} onChange={(event) => setTestQuestion(event.target.value)} maxLength={4000} />
+            <textarea aria-label="Prompt test question" className="mt-4 min-h-24 w-full rounded-lg border border-slate-300 bg-white p-3 text-sm text-slate-900 placeholder:text-slate-400" placeholder="Enter one controlled test question" value={testQuestion} onChange={(event) => setTestQuestion(event.target.value)} maxLength={4000} />
             <div className="mt-3 flex flex-wrap gap-2">
               <button type="button" onClick={() => void testDraft()} disabled={busy || !selected || selected.status !== "draft" || !testQuestion.trim()} className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Test draft</button>
               <button type="button" onClick={() => void changeActive("prompt_activate")} disabled={busy || !selected || selected.status !== "draft"} className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Activate</button>
