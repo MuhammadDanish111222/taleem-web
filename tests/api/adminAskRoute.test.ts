@@ -6,11 +6,13 @@ import { requireAdminSession } from "@/lib/auth/session";
 import { validateAdminWriteRequest } from "@/lib/security/adminWrite";
 import { callAiService } from "@/lib/internalApi/callAiService";
 import { DomainError } from "@/lib/services/admin/catalogueService";
+import { getAdminChapters } from "@/lib/firestore/catalogue.admin";
 
 vi.mock("@/lib/config/adminPanel", () => ({ isAdminPanelEnabled: vi.fn() }));
 vi.mock("@/lib/auth/session", () => ({ requireAdminSession: vi.fn() }));
 vi.mock("@/lib/security/adminWrite", () => ({ validateAdminWriteRequest: vi.fn() }));
 vi.mock("@/lib/internalApi/callAiService", () => ({ callAiService: vi.fn() }));
+vi.mock("@/lib/firestore/catalogue.admin", () => ({ getAdminChapters: vi.fn() }));
 
 function request(body: unknown, headers: Record<string, string> = {}) {
   return new NextRequest("http://localhost/api/admin/ask", {
@@ -27,6 +29,7 @@ describe("Module 4 local Ask admin BFF", () => {
     vi.mocked(requireAdminSession).mockResolvedValue({ uid: "admin-1", admin: true } as never);
     vi.mocked(validateAdminWriteRequest).mockResolvedValue();
     vi.mocked(callAiService).mockResolvedValue({ items: [] });
+    vi.mocked(getAdminChapters).mockResolvedValue([]);
   });
 
   it("returns 404 before session, CSRF, parsing, or service work when disabled", async () => {
@@ -116,6 +119,37 @@ describe("Module 4 local Ask admin BFF", () => {
       }), "admin-1", true,
       "local_ask_admin", { requestId: undefined },
     );
+  });
+
+  it("validates blueprint chapters against the selected catalogue scope before forwarding", async () => {
+    vi.mocked(getAdminChapters).mockResolvedValue([{ slug: "motion", active: true }] as never);
+    const body = {
+      operation: "blueprint_preview" as const,
+      board_id: "punjab", class_id: "class-9", subject_id: "physics",
+      blueprint: {
+        duration_minutes: 120,
+        sections: [{
+          key: "B", title: "Short", type: "short", select_count: 1, attempt_count: 1, marks_each: 2,
+          difficulty_distribution: {}, chapter_distribution: { motion: 1 },
+        }],
+      },
+    };
+    const response = await POST(request(body));
+    expect(response.status).toBe(200);
+    expect(getAdminChapters).toHaveBeenCalledWith("punjab", "class-9", "physics");
+    expect(callAiService).toHaveBeenLastCalledWith(
+      "/api/v1/internal/admin/ask", "POST", body, "admin-1", true, "local_ask_admin", { requestId: undefined },
+    );
+  });
+
+  it("rejects a blueprint chapter outside the selected catalogue scope", async () => {
+    vi.mocked(getAdminChapters).mockResolvedValue([{ slug: "motion", active: true }] as never);
+    const response = await POST(request({
+      operation: "blueprint_preview", board_id: "punjab", class_id: "class-9", subject_id: "physics",
+      blueprint: { duration_minutes: 120, sections: [{ key: "B", title: "Short", type: "short", select_count: 1, attempt_count: 1, marks_each: 2, difficulty_distribution: {}, chapter_distribution: { atoms: 1 } }] },
+    }));
+    expect(response.status).toBe(400);
+    expect(callAiService).not.toHaveBeenCalled();
   });
 
   it.each([

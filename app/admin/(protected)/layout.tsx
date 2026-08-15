@@ -73,6 +73,12 @@ async function AuthGuard({ children }: { children: React.ReactNode }) {
             Approved Bank
           </Link>
           <Link
+            href="/admin/blueprints"
+            className="flex items-center gap-3 px-4 py-3 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/50 rounded-lg transition-colors"
+          >
+            Test Blueprints
+          </Link>
+          <Link
             href="/admin/content"
             className="flex items-center gap-3 px-4 py-3 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/50 rounded-lg transition-colors"
           >

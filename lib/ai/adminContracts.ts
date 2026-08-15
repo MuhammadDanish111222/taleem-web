@@ -25,6 +25,9 @@ export const askAdminOperations = [
   "bank_set_visuals",
   "source_policy_get",
   "source_policy_set_semantic_threshold",
+  "blueprint_get",
+  "blueprint_preview",
+  "blueprint_save",
 ] as const;
 
 export type AskAdminOperation = (typeof askAdminOperations)[number];
@@ -136,6 +139,39 @@ export const questionBankImportSchema = z.object({
 
 export type QuestionBankImportInput = z.infer<typeof questionBankImportSchema>;
 
+export const boardPaperBlueprintSectionSchema = z.object({
+  key: z.string().trim().regex(/^[A-Za-z0-9][A-Za-z0-9_-]{0,31}$/),
+  title: z.string().trim().min(1).max(160),
+  type: z.enum(["mcq", "short", "long"]),
+  select_count: z.number().int().min(1).max(100),
+  attempt_count: z.number().int().min(1).max(100),
+  marks_each: z.number().positive().max(1_000),
+  difficulty_distribution: z.record(z.enum(["easy", "medium", "hard"]), z.number().int().min(1)).default({}),
+  chapter_distribution: z.record(z.string().trim().min(1).max(120), z.number().int().min(1)).default({}),
+}).strict().superRefine((value, ctx) => {
+  if (value.attempt_count > value.select_count) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Attempt count cannot exceed questions shown", path: ["attempt_count"] });
+  }
+  if (Object.keys(value.difficulty_distribution).length && Object.values(value.difficulty_distribution).reduce((sum, count) => sum + count, 0) !== value.select_count) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Difficulty counts must equal questions shown", path: ["difficulty_distribution"] });
+  }
+  if (Object.keys(value.chapter_distribution).length && Object.values(value.chapter_distribution).reduce((sum, count) => sum + count, 0) !== value.select_count) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Chapter counts must equal questions shown", path: ["chapter_distribution"] });
+  }
+});
+
+export const boardPaperBlueprintSchema = z.object({
+  duration_minutes: z.number().int().min(1).max(600),
+  sections: z.array(boardPaperBlueprintSectionSchema).min(1).max(12),
+}).strict().superRefine((value, ctx) => {
+  const keys = value.sections.map((section) => section.key);
+  if (new Set(keys).size !== keys.length) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Section keys must be unique", path: ["sections"] });
+  }
+});
+
+export type BoardPaperBlueprintInput = z.infer<typeof boardPaperBlueprintSchema>;
+
 export const askAdminRequestSchema = z.object({
   operation: z.enum(askAdminOperations),
   prompt_id: z.string().uuid().optional(),
@@ -165,6 +201,10 @@ export const askAdminRequestSchema = z.object({
   approved_question: approvedQuestionSchema.optional(),
   import_key: z.string().trim().min(1).max(200).optional(),
   import_questions: z.array(questionBankImportSchema).min(1).max(500).optional(),
+  blueprint_name: z.string().trim().min(1).max(160).optional(),
+  blueprint: boardPaperBlueprintSchema.optional(),
+  blueprint_active: z.boolean().optional(),
+  selection_seed: z.string().trim().min(1).max(200).optional(),
   limit: z.number().int().min(1).max(100).optional(),
 }).strict().superRefine((value, ctx) => {
   const requireField = (field: keyof typeof value, message: string) => {
@@ -263,6 +303,25 @@ export const askAdminRequestSchema = z.object({
     case "source_policy_set_semantic_threshold":
       requireField("subject_id", "Subject ID is required");
       requireField("semantic_similarity_threshold", "Semantic threshold is required");
+      break;
+    case "blueprint_get":
+      requireField("board_id", "Board is required");
+      requireField("class_id", "Class is required");
+      requireField("subject_id", "Subject is required");
+      break;
+    case "blueprint_preview":
+      requireField("board_id", "Board is required");
+      requireField("class_id", "Class is required");
+      requireField("subject_id", "Subject is required");
+      requireField("blueprint", "Blueprint is required");
+      break;
+    case "blueprint_save":
+      requireField("board_id", "Board is required");
+      requireField("class_id", "Class is required");
+      requireField("subject_id", "Subject is required");
+      requireField("blueprint", "Blueprint is required");
+      requireField("blueprint_name", "Blueprint name is required");
+      requireField("blueprint_active", "Activation choice is required");
       break;
   }
 });
