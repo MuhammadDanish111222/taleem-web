@@ -34,6 +34,18 @@ export interface MultipleAskResult {
   citations: Array<Record<string, unknown>>;
   visualIds: string[];
   approvedRevisionId: string | null;
+  topicNames: string[];
+  visuals: Array<{
+    visualId: string;
+    title: string;
+    description: string;
+    displayOrder: number;
+  }>;
+  mcqResult: {
+    selectedOption: string | null;
+    correctAnswerText: string;
+    explanation: string;
+  } | null;
 }
 export interface MultipleAskItem {
   itemId: string;
@@ -49,6 +61,7 @@ export interface MultipleAskItem {
     | "failed"
     | "cancelled";
   normalizedQuestion: string | null;
+  questionText: string | null;
   answerMode: MultipleAskMode | null;
   mcqOptions: MultipleAskOption[];
   terminalErrorCode?: string | null;

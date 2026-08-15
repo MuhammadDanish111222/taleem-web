@@ -10,7 +10,7 @@ import {
 } from "react";
 import { auth } from "@/lib/firebase/client";
 import { useAuth } from "@/lib/auth/useAuth";
-import { AskResponse, AskUsage, loadAskUsage } from "@/lib/api/ask";
+import { AskUsage, loadAskUsage } from "@/lib/api/ask";
 import {
   MultipleAskApiError,
   MultipleAskInputKind,
@@ -32,7 +32,7 @@ import { BoardSelector } from "@/components/selectors/BoardSelector";
 import { ClassSelector } from "@/components/selectors/ClassSelector";
 import { SubjectSelector } from "@/components/selectors/SubjectSelector";
 import { ChapterSelector } from "@/components/selectors/ChapterSelector";
-import { AnswerRenderer, GENERAL_AI_LABEL } from "./AnswerRenderer";
+import { MultipleAskAnswer } from "./MultipleAskAnswer";
 import { UsagePanel } from "./UsagePanel";
 import { useSupportWhatsapp } from "./useSupportWhatsapp";
 
@@ -107,90 +107,13 @@ function errorCopy(error: unknown) {
     ? "The service is temporarily unavailable. You can retry safely."
     : "This action could not be completed.";
 }
-function safeBlocks(value: Array<Record<string, unknown>>) {
-  return value.filter((block) =>
-    ["paragraph", "heading", "bullet_list", "equation", "visual_ref"].includes(
-      String(block.type),
-    ),
-  ) as AskResponse["blocks"];
-}
-function toAnswer(item: MultipleAskItem, jobId: string): AskResponse | null {
-  if (!item.result || !item.answerMode || item.answerMode === "not_clear")
-    return null;
-  const citations =
-    item.result.answerSource === "general_knowledge"
-      ? []
-      : item.result.citations.map((value, index) => ({
-          citationId: String(value.citationId ?? value.citation_id ?? index),
-          chapterId:
-            typeof value.chapterId === "string"
-              ? value.chapterId
-              : typeof value.chapter_id === "string"
-                ? value.chapter_id
-                : null,
-          topicNo:
-            typeof value.topicNo === "string"
-              ? value.topicNo
-              : typeof value.topic_no === "string"
-                ? value.topic_no
-                : null,
-          topicTitle:
-            typeof value.topicTitle === "string"
-              ? value.topicTitle
-              : typeof value.topic_title === "string"
-                ? value.topic_title
-                : null,
-          pageStart:
-            typeof value.pageStart === "number"
-              ? value.pageStart
-              : typeof value.page_start === "number"
-                ? value.page_start
-                : typeof value.page === "number"
-                  ? value.page
-                  : null,
-          pageEnd:
-            typeof value.pageEnd === "number"
-              ? value.pageEnd
-              : typeof value.page_end === "number"
-                ? value.page_end
-                : null,
-        }));
-  return {
-    requestId: jobId,
-    answerSource: item.result.answerSource,
-    answerMode: item.answerMode === "long" ? "long" : "short",
-    answerStyle: "exam_style",
-    blocks: safeBlocks(item.result.blocks),
-    citations,
-    visuals: item.result.visualIds.map((visualId, displayOrder) => ({
-      visualId,
-      title: "Reviewed visual",
-      description: "",
-      displayPolicy: "always" as const,
-      displayOrder,
-    })),
-    generalAiLabel:
-      item.result.answerSource === "general_knowledge"
-        ? GENERAL_AI_LABEL
-        : null,
-    promptVersion: null,
-    corpusVersion: null,
-    approvedRevisionId: item.result.approvedRevisionId,
-    usage: {
-      feature: "single_question",
-      used: 0,
-      limit: null,
-      remaining: null,
-      resetsAt: new Date().toISOString(),
-    },
-    terminalStatus: "answered",
-    errorCode: null,
-  };
-}
 function initialDraft(item: MultipleAskItem): CorrectionDraft {
   return {
-    questionText: item.normalizedQuestion ?? "",
-    answerMode: "short",
+    questionText: item.questionText ?? "",
+    answerMode:
+      item.answerMode && item.answerMode !== "not_clear"
+        ? item.answerMode
+        : "short",
     mcqOptions: item.mcqOptions.map((option) => ({
       label: option.label,
       text: option.text,
@@ -948,7 +871,6 @@ function BatchState({
               </p>
             </header>
             {status.items.map((item) => {
-              const answer = toAnswer(item, status.jobId);
               return (
                 <article
                   key={item.itemId}
@@ -960,11 +882,7 @@ function BatchState({
                       {item.sectionContext ? ` — ${item.sectionContext}` : ""}
                     </p>
                     <p className="mt-1 text-sm text-slate-600">
-                      {item.answerMode === "mcq"
-                        ? "MCQ"
-                        : item.answerMode
-                          ? `${item.answerMode[0].toUpperCase()}${item.answerMode.slice(1)} question`
-                          : "Question"}
+                      {item.questionText ?? "Question text unavailable"}
                     </p>
                   </header>
                   {item.itemStatus === "failed" ? (
@@ -976,10 +894,12 @@ function BatchState({
                     <p className="mt-4 rounded-lg bg-slate-100 p-4">
                       This item was cancelled and has no answer.
                     </p>
-                  ) : answer ? (
-                    <div className="mt-4">
-                      <AnswerRenderer answer={answer} getToken={getToken} />
-                    </div>
+                  ) : item.result ? (
+                    <MultipleAskAnswer
+                      item={item}
+                      jobId={status.jobId}
+                      getToken={getToken}
+                    />
                   ) : (
                     <p className="mt-4 text-slate-600">
                       No answer is available for this item.

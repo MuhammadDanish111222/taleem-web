@@ -209,6 +209,41 @@ function AnswerBlock({
   );
 }
 
+export function AnswerBlockList({
+  blocks,
+  visuals,
+  requestId,
+  getToken,
+  loadVisual,
+}: {
+  blocks: AskAnswerBlock[];
+  visuals: AskVisual[];
+  requestId: string;
+  getToken: TokenProvider;
+  loadVisual?: (
+    visualId: string,
+    requestId: string,
+    getToken: TokenProvider,
+    signal?: AbortSignal,
+  ) => Promise<Blob>;
+}) {
+  const visualMap = new Map(visuals.map((visual) => [visual.visualId, visual]));
+  return (
+    <div className="space-y-5">
+      {blocks.map((block, index) => (
+        <AnswerBlock
+          key={`${block.type}-${index}`}
+          block={block}
+          visuals={visualMap}
+          requestId={requestId}
+          getToken={getToken}
+          loadVisual={loadVisual}
+        />
+      ))}
+    </div>
+  );
+}
+
 function CitationList({ citations }: { citations: AskCitation[] }) {
   if (citations.length === 0) return null;
   return (
@@ -280,12 +315,7 @@ export function AnswerRenderer({
 
   const presentation = sourcePresentation(answer.answerSource);
   const isGeneral = answer.answerSource === "general_knowledge";
-  const visuals = new Map(
-    (isGeneral ? [] : visualOverride ?? answer.visuals).map((visual) => [
-      visual.visualId,
-      visual,
-    ]),
-  );
+  const visuals = isGeneral ? [] : visualOverride ?? answer.visuals;
   const citations = isGeneral ? [] : answer.citations;
 
   return (
@@ -309,17 +339,14 @@ export function AnswerRenderer({
         )}
       </header>
 
-      <div className="mt-6 space-y-5">
-        {answer.blocks.map((block, index) => (
-          <AnswerBlock
-            key={`${block.type}-${index}`}
-            block={block}
-            visuals={visuals}
-            requestId={answer.requestId}
-            getToken={getToken}
-            loadVisual={loadVisual}
-          />
-        ))}
+      <div className="mt-6">
+        <AnswerBlockList
+          blocks={answer.blocks}
+          visuals={visuals}
+          requestId={answer.requestId}
+          getToken={getToken}
+          loadVisual={loadVisual}
+        />
       </div>
 
       <CitationList citations={citations} />

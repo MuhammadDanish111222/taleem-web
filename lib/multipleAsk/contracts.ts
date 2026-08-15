@@ -167,6 +167,7 @@ export const multipleAskStatusInternalResponseSchema = z.object({
           .optional()
           .default("pending_extraction"),
         normalized_question: z.string().nullable().optional(),
+        question_text: z.string().nullable().optional(),
         answer_mode: z
           .enum(["short", "long", "mcq", "not_clear"])
           .nullable()
@@ -192,6 +193,28 @@ export const multipleAskStatusInternalResponseSchema = z.object({
             citations: z.array(z.record(z.string(), z.unknown())),
             visual_ids: z.array(z.string()),
             approved_revision_id: z.string().nullable().optional(),
+            topic_names: z.array(z.string()).optional().default([]),
+            visuals: z
+              .array(
+                z.object({
+                  visual_id: z.string(),
+                  title: z.string(),
+                  description: z.string(),
+                  display_order: z.number().int(),
+                }),
+              )
+              .optional()
+              .default([]),
+            mcq_result: z
+              .object({
+                item_id: z.string(),
+                selected_option: z.string().nullable(),
+                correct_answer_text: z.string(),
+                explanation: z.string(),
+              })
+              .nullable()
+              .optional()
+              .default(null),
           })
           .nullable()
           .optional()
@@ -317,6 +340,7 @@ export function toBrowserStatusResponse(
       sectionContext: item.section_context,
       itemStatus: item.item_status,
       normalizedQuestion: item.normalized_question,
+      questionText: item.question_text,
       answerMode: item.answer_mode,
       mcqOptions: item.mcq_options,
       unclearReason: item.unclear_reason,
@@ -332,6 +356,20 @@ export function toBrowserStatusResponse(
             citations: item.result.citations,
             visualIds: item.result.visual_ids,
             approvedRevisionId: item.result.approved_revision_id,
+            topicNames: item.result.topic_names,
+            visuals: item.result.visuals.map((visual) => ({
+              visualId: visual.visual_id,
+              title: visual.title,
+              description: visual.description,
+              displayOrder: visual.display_order,
+            })),
+            mcqResult: item.result.mcq_result
+              ? {
+                  selectedOption: item.result.mcq_result.selected_option,
+                  correctAnswerText: item.result.mcq_result.correct_answer_text,
+                  explanation: item.result.mcq_result.explanation,
+                }
+              : null,
           }
         : null,
     })),
