@@ -17,6 +17,14 @@ function safeError(error: unknown) {
     return ["Forbidden", 403] as const;
   }
   const upstreamStatus = (error as { status?: unknown })?.status;
+  const upstreamCode = (error as { errorData?: { detail?: { code?: unknown } } })
+    ?.errorData?.detail?.code;
+  const visualImportError = typeof upstreamCode === "string"
+    ? /^IMPORT_QUESTION_(\d+)_VISUAL_LINK_NOT_REVIEWED$/.exec(upstreamCode)
+    : null;
+  if (visualImportError) {
+    return [`Question ${visualImportError[1]}: visual_ids must reference one approved visual in the selected scope. No questions were imported.`, 409] as const;
+  }
   if (typeof upstreamStatus === "number" && upstreamStatus >= 400 && upstreamStatus < 500) {
     return ["Admin operation rejected", upstreamStatus] as const;
   }

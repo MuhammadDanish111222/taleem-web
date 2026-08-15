@@ -94,6 +94,48 @@ export const approvedQuestionSchema = z.object({
 
 export type ApprovedQuestionInput = z.infer<typeof approvedQuestionSchema>;
 
+export const questionBankImportSchema = z.object({
+  question: z.string().trim().min(1).max(4_000),
+  type: z.enum(["mcq", "short", "long"]),
+  difficulty: z.enum(["easy", "medium", "hard"]),
+  marks: z.number().positive().max(1_000).optional(),
+  options: z.array(z.string().trim().min(1).max(1_000)).max(12).default([]),
+  correct_answer: z.string().trim().min(1).max(1_000).optional(),
+  answer_blocks: z.array(answerBlockSchema).max(120).default([]),
+  visual_ids: z.array(z.string().trim().min(1).max(160)).max(20).default([]),
+}).strict().superRefine((value, ctx) => {
+  const visualBlocks = value.answer_blocks
+    .filter((block): block is Extract<typeof block, { type: "visual_ref" }> => block.type === "visual_ref")
+    .map((block) => block.visual_id);
+  if (new Set(value.visual_ids).size !== value.visual_ids.length) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Visual IDs must be unique", path: ["visual_ids"] });
+  }
+  if (new Set(visualBlocks).size !== visualBlocks.length || visualBlocks.some((id) => !value.visual_ids.includes(id))) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Visual answer blocks must refer to supplied visual_ids", path: ["answer_blocks"] });
+  }
+  const unsafeLatex = value.answer_blocks.some((block) => block.type === "equation" && /\\(?:input|include|write18|openout|usepackage|href|url)\b/i.test(block.latex));
+  if (unsafeLatex) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Equation contains an unsafe command", path: ["answer_blocks"] });
+  }
+  if (value.type === "mcq") {
+    if (value.options.length < 2 || new Set(value.options).size !== value.options.length) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "MCQ needs at least two unique options", path: ["options"] });
+    }
+    if (!value.correct_answer || !value.options.includes(value.correct_answer)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "MCQ correct_answer must match one supplied option", path: ["correct_answer"] });
+    }
+  } else {
+    if (!value.answer_blocks.length) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Short and long answers require answer_blocks", path: ["answer_blocks"] });
+    }
+    if (value.options.length || value.correct_answer !== undefined) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Only MCQs may include options or correct_answer", path: ["type"] });
+    }
+  }
+});
+
+export type QuestionBankImportInput = z.infer<typeof questionBankImportSchema>;
+
 export const askAdminRequestSchema = z.object({
   operation: z.enum(askAdminOperations),
   prompt_id: z.string().uuid().optional(),
@@ -122,7 +164,7 @@ export const askAdminRequestSchema = z.object({
   visual_ids: z.array(z.string().trim().min(1).max(160)).max(20).optional(),
   approved_question: approvedQuestionSchema.optional(),
   import_key: z.string().trim().min(1).max(200).optional(),
-  import_questions: z.array(approvedQuestionSchema).min(1).max(500).optional(),
+  import_questions: z.array(questionBankImportSchema).min(1).max(500).optional(),
   limit: z.number().int().min(1).max(100).optional(),
 }).strict().superRefine((value, ctx) => {
   const requireField = (field: keyof typeof value, message: string) => {
@@ -183,6 +225,10 @@ export const askAdminRequestSchema = z.object({
     case "bank_import":
       requireField("import_key", "Import key is required");
       requireField("import_questions", "Import questions are required");
+      requireField("board_id", "Board is required");
+      requireField("class_id", "Class is required");
+      requireField("subject_id", "Subject is required");
+      requireField("chapter_id", "Chapter is required");
       break;
     case "bank_view":
       requireField("revision_id", "Revision ID is required");

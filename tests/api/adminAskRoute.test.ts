@@ -88,6 +88,36 @@ describe("Module 4 local Ask admin BFF", () => {
     );
   });
 
+  it("accepts the scoped, human-friendly Question Bank JSON import contract", async () => {
+    const body = {
+      operation: "bank_import",
+      import_key: "question-bank:punjab:class-9:chemistry:atoms:hash",
+      board_id: "punjab",
+      class_id: "class-9",
+      subject_id: "chemistry",
+      chapter_id: "atoms",
+      import_questions: [{
+        question: "Which particle has a negative charge?",
+        type: "mcq",
+        difficulty: "easy",
+        options: ["Proton", "Electron"],
+        correct_answer: "Electron",
+        visual_ids: [],
+      }],
+    };
+    const response = await POST(request(body));
+    expect(response.status).toBe(200);
+    expect(callAiService).toHaveBeenLastCalledWith(
+      "/api/v1/internal/admin/ask", "POST", expect.objectContaining({
+        ...body,
+        import_questions: [expect.objectContaining({
+          ...body.import_questions[0], answer_blocks: [], visual_ids: [],
+        })],
+      }), "admin-1", true,
+      "local_ask_admin", { requestId: undefined },
+    );
+  });
+
   it.each([
     { operation: "prompt_history", prompt_key: "ask_grounded", answer_mode: "short", subject_id: "physics" },
     { operation: "prompt_history", prompt_key: "ask_general", answer_mode: "long", board_id: "punjab", class_id: "class-9", subject_id: "physics" },
@@ -176,5 +206,17 @@ describe("Module 4 local Ask admin BFF", () => {
     expect(text).toContain("Admin operation rejected");
     expect(text).not.toContain("secret prompt");
     expect(text).not.toContain("provider key");
+  });
+
+  it("surfaces only the safe question index for an invalid imported visual", async () => {
+    const upstream = new Error("AI Service Error") as Error & { status: number; errorData: unknown };
+    upstream.status = 409;
+    upstream.errorData = { detail: { code: "IMPORT_QUESTION_37_VISUAL_LINK_NOT_REVIEWED", secret: "must not leak" } };
+    vi.mocked(callAiService).mockRejectedValue(upstream);
+    const response = await POST(request({ operation: "candidate_list" }));
+    const text = await response.text();
+    expect(response.status).toBe(409);
+    expect(text).toContain("Question 37");
+    expect(text).not.toContain("secret");
   });
 });

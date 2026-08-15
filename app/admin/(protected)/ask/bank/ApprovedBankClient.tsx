@@ -7,12 +7,13 @@ import ApprovedQuestionEditor, {
   type ApprovedQuestionDraft,
 } from "@/components/admin/ask/ApprovedQuestionEditor";
 import {
-  approvedQuestionSchema,
   type ApprovedBankHistory,
   type ApprovedBankSummary,
-  type ApprovedQuestionInput,
+  questionBankImportSchema,
 } from "@/lib/ai/adminContracts";
 import { callAskAdmin } from "@/lib/client/askAdmin";
+import { getBoards, getChapters, getClasses, getSubjects } from "@/lib/firestore/catalogue";
+import { useCatalogueOptions } from "@/lib/hooks/useCatalogueOptions";
 
 interface ApprovedRevision {
   revision_id: string;
@@ -28,6 +29,13 @@ interface ApprovedRevision {
 }
 
 const inputClass = "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900";
+type ImportScope = { board_id: string; class_id: string; subject_id: string; chapter_id: string };
+
+async function importKeyFor(scope: ImportScope, content: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(content));
+  const hash = Array.from(new Uint8Array(digest), (part) => part.toString(16).padStart(2, "0")).join("");
+  return `question-bank:${scope.board_id}:${scope.class_id}:${scope.subject_id}:${scope.chapter_id}:${hash}`;
+}
 
 export default function ApprovedBankClient() {
   const [items, setItems] = useState<ApprovedBankSummary[]>([]);
@@ -44,11 +52,26 @@ export default function ApprovedBankClient() {
   const [variation, setVariation] = useState("");
   const [visualIds, setVisualIds] = useState("");
   const [archiveReason, setArchiveReason] = useState("");
-  const [importKey, setImportKey] = useState("");
+  const [importScope, setImportScope] = useState<ImportScope>({ board_id: "", class_id: "", subject_id: "", chapter_id: "" });
   const [importJson, setImportJson] = useState("[]");
+  const [importFileName, setImportFileName] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const boards = useCatalogueOptions("admin-bank-import-boards", getBoards);
+  const classes = useCatalogueOptions(
+    importScope.board_id ? `admin-bank-import-classes:${importScope.board_id}` : null,
+    () => getClasses(importScope.board_id),
+  );
+  const subjects = useCatalogueOptions(
+    importScope.board_id && importScope.class_id ? `admin-bank-import-subjects:${importScope.board_id}:${importScope.class_id}` : null,
+    () => getSubjects(importScope.board_id, importScope.class_id),
+  );
+  const chapters = useCatalogueOptions(
+    importScope.board_id && importScope.class_id && importScope.subject_id ? `admin-bank-import-chapters:${importScope.board_id}:${importScope.class_id}:${importScope.subject_id}` : null,
+    () => getChapters(importScope.board_id, importScope.class_id, importScope.subject_id),
+  );
+  const importScopeComplete = Boolean(importScope.board_id && importScope.class_id && importScope.subject_id && importScope.chapter_id);
 
   function begin() {
     setBusy(true);
@@ -102,20 +125,41 @@ export default function ApprovedBankClient() {
     try {
       const raw = JSON.parse(importJson) as unknown;
       if (!Array.isArray(raw) || raw.length === 0) throw new Error("Import JSON must be a non-empty array");
-      const questions: ApprovedQuestionInput[] = raw.map((item, index) => {
-        const result = approvedQuestionSchema.safeParse(item);
+      const questions = raw.map((item, index) => {
+        const result = questionBankImportSchema.safeParse(item);
         if (!result.success) throw new Error(`Question ${index + 1}: ${result.error.issues[0]?.message ?? "invalid"}`);
         return result.data;
       });
+      if (!importScopeComplete) throw new Error("Select Board, Class, Subject, and Chapter before importing");
+      const importKey = await importKeyFor(importScope, JSON.stringify(questions));
       const result = await callAskAdmin<{ status: string; revision_ids: string[] }>({
         operation: "bank_import",
+        ...importScope,
         import_key: importKey,
         import_questions: questions,
       });
-      setNotice(`${result.revision_ids.length} approved revisions returned (${result.status}). Reusing the same key with identical content is idempotent.`);
+      setNotice(result.status === "already_imported"
+        ? `${result.revision_ids.length} questions were already imported; this identical file is idempotent.`
+        : `${questions.length} questions validated. ${result.revision_ids.length} questions imported successfully.`);
       setBusy(false);
     } catch (caught) {
       fail(caught, "Could not import approved questions");
+    }
+  }
+
+  async function selectImportFile(file: File | null) {
+    if (!file) return;
+    begin();
+    try {
+      if (!file.name.toLowerCase().endsWith(".json")) throw new Error("Choose a JSON file");
+      const content = await file.text();
+      JSON.parse(content);
+      setImportJson(content);
+      setImportFileName(file.name);
+      setNotice(`${file.name} loaded. Validate and import when the scope is selected.`);
+      setBusy(false);
+    } catch (caught) {
+      fail(caught, "Could not read JSON file");
     }
   }
 
@@ -279,12 +323,41 @@ export default function ApprovedBankClient() {
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-xl font-semibold">Idempotent approved import</h2>
-          <p className="mt-1 text-sm text-slate-500">Provide a stable import key and a validated JSON array. A reused key must carry byte-equivalent normalized content.</p>
+          <h2 className="text-xl font-semibold">Bulk import approved questions</h2>
+          <p className="mt-1 text-sm text-slate-500">Select the catalogue scope once, then upload a JSON array. Every item is validated before the transaction starts; imports are approved immediately.</p>
           <div className="mt-4 grid gap-3">
-            <input aria-label="Import key" className={inputClass} placeholder="Stable import key" value={importKey} onChange={(event) => setImportKey(event.target.value)} maxLength={200} />
-            <textarea aria-label="Approved questions import JSON" className={`${inputClass} min-h-52 font-mono`} value={importJson} onChange={(event) => setImportJson(event.target.value)} spellCheck={false} />
-            <button type="button" onClick={() => void importApproved()} disabled={busy || !importKey.trim()} className="w-fit rounded-lg bg-indigo-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Import approved questions</button>
+            <div className="grid gap-3 md:grid-cols-2">
+              <label className="text-sm font-medium">Board
+                <select aria-label="Import board" className={`${inputClass} mt-1`} value={importScope.board_id} onChange={(event) => setImportScope({ board_id: event.target.value, class_id: "", subject_id: "", chapter_id: "" })}>
+                  <option value="">{boards.loading ? "Loading boards..." : "Select Board"}</option>
+                  {boards.data?.map((item) => <option key={item.slug} value={item.slug}>{item.name}</option>)}
+                </select>
+              </label>
+              <label className="text-sm font-medium">Class
+                <select aria-label="Import class" className={`${inputClass} mt-1`} value={importScope.class_id} disabled={!importScope.board_id || classes.loading} onChange={(event) => setImportScope({ ...importScope, class_id: event.target.value, subject_id: "", chapter_id: "" })}>
+                  <option value="">{classes.loading ? "Loading classes..." : "Select Class"}</option>
+                  {classes.data?.map((item) => <option key={item.slug} value={item.slug}>{item.name}</option>)}
+                </select>
+              </label>
+              <label className="text-sm font-medium">Subject
+                <select aria-label="Import subject" className={`${inputClass} mt-1`} value={importScope.subject_id} disabled={!importScope.class_id || subjects.loading} onChange={(event) => setImportScope({ ...importScope, subject_id: event.target.value, chapter_id: "" })}>
+                  <option value="">{subjects.loading ? "Loading subjects..." : "Select Subject"}</option>
+                  {subjects.data?.map((item) => <option key={item.slug} value={item.slug}>{item.name}</option>)}
+                </select>
+              </label>
+              <label className="text-sm font-medium">Chapter
+                <select aria-label="Import chapter" className={`${inputClass} mt-1`} value={importScope.chapter_id} disabled={!importScope.subject_id || chapters.loading} onChange={(event) => setImportScope({ ...importScope, chapter_id: event.target.value })}>
+                  <option value="">{chapters.loading ? "Loading chapters..." : "Select Chapter"}</option>
+                  {chapters.data?.map((item) => <option key={item.slug} value={item.slug}>{item.chapter_number}. {item.title}</option>)}
+                </select>
+              </label>
+            </div>
+            <label className="text-sm font-medium">Question Bank JSON
+              <input aria-label="Question Bank JSON file" type="file" accept="application/json,.json" className="mt-1 block text-sm" onChange={(event) => void selectImportFile(event.target.files?.[0] ?? null)} />
+            </label>
+            {importFileName ? <p className="text-xs text-slate-500">Loaded: {importFileName}</p> : null}
+            <textarea aria-label="Approved questions import JSON" className={`${inputClass} min-h-52 font-mono`} value={importJson} onChange={(event) => { setImportJson(event.target.value); setImportFileName(""); }} spellCheck={false} />
+            <button type="button" onClick={() => void importApproved()} disabled={busy || !importScopeComplete} className="w-fit rounded-lg bg-indigo-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Validate and import JSON</button>
           </div>
         </div>
 
