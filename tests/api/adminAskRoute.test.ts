@@ -105,7 +105,8 @@ describe("Module 4 local Ask admin BFF", () => {
         difficulty: "easy",
         options: ["Proton", "Electron"],
         correct_answer: "Electron",
-        visual_ids: [],
+        question_visual_ids: [],
+        answer_visual_ids: [],
       }],
     };
     const response = await POST(request(body));
@@ -114,7 +115,7 @@ describe("Module 4 local Ask admin BFF", () => {
       "/api/v1/internal/admin/ask", "POST", expect.objectContaining({
         ...body,
         import_questions: [expect.objectContaining({
-          ...body.import_questions[0], answer_blocks: [], visual_ids: [],
+          ...body.import_questions[0], answer_blocks: [], question_visual_ids: [], answer_visual_ids: [],
         })],
       }), "admin-1", true,
       "local_ask_admin", { requestId: undefined },

@@ -59,7 +59,8 @@ export const approvedQuestionSchema = z.object({
   blocks: z.array(answerBlockSchema).min(1).max(120),
   mcq_options: z.array(mcqOptionSchema).max(12).default([]),
   citation_ids: z.array(z.string().uuid()).max(20).default([]),
-  visual_ids: z.array(z.string().trim().min(1).max(160)).max(20).default([]),
+  question_visual_ids: z.array(z.string().trim().min(1).max(160)).max(20).default([]),
+  answer_visual_ids: z.array(z.string().trim().min(1).max(160)).max(20).default([]),
 }).strict().superRefine((value, ctx) => {
   const unsafeLatex = value.blocks.some((block) => (
     block.type === "equation"
@@ -75,16 +76,16 @@ export const approvedQuestionSchema = z.object({
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Visual blocks must be unique", path: ["blocks"] });
   }
   if (
-    visualBlocks.length !== value.visual_ids.length
-    || visualBlocks.some((id) => !value.visual_ids.includes(id))
+    visualBlocks.length !== value.answer_visual_ids.length
+    || visualBlocks.some((id) => !value.answer_visual_ids.includes(id))
   ) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Visual block links must match reviewed visual IDs", path: ["visual_ids"] });
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Answer visual blocks must match Answer Visual IDs", path: ["answer_visual_ids"] });
   }
   if (new Set(value.citation_ids).size !== value.citation_ids.length) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Citation links must be unique", path: ["citation_ids"] });
   }
-  if (new Set(value.visual_ids).size !== value.visual_ids.length) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Visual links must be unique", path: ["visual_ids"] });
+  if (new Set(value.question_visual_ids).size !== value.question_visual_ids.length || new Set(value.answer_visual_ids).size !== value.answer_visual_ids.length) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Visual links must be unique within each role", path: ["question_visual_ids"] });
   }
   const correctOptions = value.mcq_options.filter((option) => option.is_correct).length;
   if (value.answer_mode === "mcq" && (value.mcq_options.length < 2 || correctOptions !== 1)) {
@@ -105,16 +106,18 @@ export const questionBankImportSchema = z.object({
   options: z.array(z.string().trim().min(1).max(1_000)).max(12).default([]),
   correct_answer: z.string().trim().min(1).max(1_000).optional(),
   answer_blocks: z.array(answerBlockSchema).max(120).default([]),
-  visual_ids: z.array(z.string().trim().min(1).max(160)).max(20).default([]),
+  question_visual_ids: z.array(z.string().trim().min(1).max(160)).max(20).default([]),
+  answer_visual_ids: z.array(z.string().trim().min(1).max(160)).max(20).default([]),
+  visual_ids: z.never().optional(),
 }).strict().superRefine((value, ctx) => {
   const visualBlocks = value.answer_blocks
     .filter((block): block is Extract<typeof block, { type: "visual_ref" }> => block.type === "visual_ref")
     .map((block) => block.visual_id);
-  if (new Set(value.visual_ids).size !== value.visual_ids.length) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Visual IDs must be unique", path: ["visual_ids"] });
+  if (new Set(value.question_visual_ids).size !== value.question_visual_ids.length || new Set(value.answer_visual_ids).size !== value.answer_visual_ids.length) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Visual IDs must be unique within each role", path: ["question_visual_ids"] });
   }
-  if (new Set(visualBlocks).size !== visualBlocks.length || visualBlocks.some((id) => !value.visual_ids.includes(id))) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Visual answer blocks must refer to supplied visual_ids", path: ["answer_blocks"] });
+  if (new Set(visualBlocks).size !== visualBlocks.length || visualBlocks.some((id) => !value.answer_visual_ids.includes(id))) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Visual answer blocks must refer to answer_visual_ids", path: ["answer_blocks"] });
   }
   const unsafeLatex = value.answer_blocks.some((block) => block.type === "equation" && /\\(?:input|include|write18|openout|usepackage|href|url)\b/i.test(block.latex));
   if (unsafeLatex) {
@@ -197,7 +200,8 @@ export const askAdminRequestSchema = z.object({
   provider: z.string().trim().min(1).max(120).optional(),
   bank_source: z.string().trim().min(1).max(120).optional(),
   age_days: z.number().int().min(0).max(3650).optional(),
-  visual_ids: z.array(z.string().trim().min(1).max(160)).max(20).optional(),
+  question_visual_ids: z.array(z.string().trim().min(1).max(160)).max(20).optional(),
+  answer_visual_ids: z.array(z.string().trim().min(1).max(160)).max(20).optional(),
   approved_question: approvedQuestionSchema.optional(),
   import_key: z.string().trim().min(1).max(200).optional(),
   import_questions: z.array(questionBankImportSchema).min(1).max(500).optional(),
@@ -295,7 +299,8 @@ export const askAdminRequestSchema = z.object({
       break;
     case "bank_set_visuals":
       requireField("revision_id", "Revision ID is required");
-      requireField("visual_ids", "Visual IDs are required");
+      requireField("question_visual_ids", "Question Visual IDs are required");
+      requireField("answer_visual_ids", "Answer Visual IDs are required");
       break;
     case "source_policy_get":
       requireField("subject_id", "Subject ID is required");

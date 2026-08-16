@@ -14,7 +14,8 @@ export interface ApprovedQuestionDraft {
   blocksJson: string;
   mcqOptionsJson: string;
   citationIds: string;
-  visualIds: string;
+  questionVisualIds: string;
+  answerVisualIds: string;
 }
 
 export const EMPTY_APPROVED_QUESTION: ApprovedQuestionDraft = {
@@ -29,7 +30,8 @@ export const EMPTY_APPROVED_QUESTION: ApprovedQuestionDraft = {
   blocksJson: JSON.stringify([{ type: "paragraph", text: "" }], null, 2),
   mcqOptionsJson: "[]",
   citationIds: "",
-  visualIds: "",
+  questionVisualIds: "",
+  answerVisualIds: "",
 };
 
 function lines(value: string): string[] {
@@ -58,7 +60,8 @@ export function parseApprovedQuestion(draft: ApprovedQuestionDraft): ApprovedQue
     blocks,
     mcq_options: mcqOptions,
     citation_ids: lines(draft.citationIds),
-    visual_ids: lines(draft.visualIds),
+    question_visual_ids: lines(draft.questionVisualIds),
+    answer_visual_ids: lines(draft.answerVisualIds),
   });
   if (!result.success) {
     throw new Error(result.error.issues[0]?.message ?? "Approved question is invalid");
@@ -142,9 +145,13 @@ export default function ApprovedQuestionEditor({
           Reviewed citation UUIDs (one per line)
           <textarea id={`${idPrefix}-citations`} className={`${fieldClass} min-h-28 font-mono`} value={value.citationIds} onChange={(event) => set("citationIds", event.target.value)} spellCheck={false} />
         </label>
-        <label htmlFor={`${idPrefix}-visuals`} className="grid gap-1 text-sm font-medium text-slate-700">
-          Reviewed visual IDs (one per line)
-          <textarea id={`${idPrefix}-visuals`} className={`${fieldClass} min-h-28 font-mono`} value={value.visualIds} onChange={(event) => set("visualIds", event.target.value)} spellCheck={false} />
+        <label htmlFor={`${idPrefix}-question-visuals`} className="grid gap-1 text-sm font-medium text-slate-700">
+          Question Visual IDs (shown on student test papers; one per line)
+          <textarea id={`${idPrefix}-question-visuals`} className={`${fieldClass} min-h-28 font-mono`} value={value.questionVisualIds} onChange={(event) => set("questionVisualIds", event.target.value)} spellCheck={false} />
+        </label>
+        <label htmlFor={`${idPrefix}-answer-visuals`} className="grid gap-1 text-sm font-medium text-slate-700">
+          Answer Visual IDs (shown with the answer/explanation; one per line)
+          <textarea id={`${idPrefix}-answer-visuals`} className={`${fieldClass} min-h-28 font-mono`} value={value.answerVisualIds} onChange={(event) => set("answerVisualIds", event.target.value)} spellCheck={false} />
         </label>
       </div>
       <p className="text-xs text-slate-500">Answer style is fixed to exam_style. IDs are validated server-side against the selected scope; no URL or storage key is accepted.</p>

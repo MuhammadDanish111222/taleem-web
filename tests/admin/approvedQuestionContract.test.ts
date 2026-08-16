@@ -37,8 +37,8 @@ describe("approved question editor contract", () => {
     expect(() => parseApprovedQuestion({
       ...valid(),
       blocksJson: JSON.stringify([{ type: "visual_ref", visual_id: "diagram-1" }]),
-      visualIds: "diagram-2",
-    })).toThrow(/must match reviewed visual/i);
+      answerVisualIds: "diagram-2",
+    })).toThrow(/must match Answer Visual IDs/i);
   });
 
   it("rejects unsafe LaTeX commands before submission", () => {

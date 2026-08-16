@@ -25,7 +25,8 @@ function candidateDraft(item: CandidateDetail): ApprovedQuestionDraft {
     question: item.raw_question,
     blocksJson: JSON.stringify(item.answer_blocks, null, 2),
     citationIds: citationIds.join("\n"),
-    visualIds: (item.visual_ids ?? []).join("\n"),
+    questionVisualIds: "",
+    answerVisualIds: (item.visual_ids ?? []).join("\n"),
   };
 }
 

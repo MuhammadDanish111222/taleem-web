@@ -25,7 +25,8 @@ interface ApprovedRevision {
   answer_style: "exam_style";
   blocks: Array<Record<string, unknown>>;
   citations: Array<Record<string, unknown>>;
-  visuals: Array<{ visual_id: string; display_order?: number; title?: string; description?: string }>;
+  question_visuals: Array<{ visual_id: string; display_order?: number; title?: string; description?: string }>;
+  answer_visuals: Array<{ visual_id: string; display_order?: number; title?: string; description?: string }>;
 }
 
 const inputClass = "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900";
@@ -50,7 +51,8 @@ export default function ApprovedBankClient() {
   const [revision, setRevision] = useState<ApprovedRevision | null>(null);
   const [history, setHistory] = useState<ApprovedBankHistory | null>(null);
   const [variation, setVariation] = useState("");
-  const [visualIds, setVisualIds] = useState("");
+  const [questionVisualIds, setQuestionVisualIds] = useState("");
+  const [answerVisualIds, setAnswerVisualIds] = useState("");
   const [archiveReason, setArchiveReason] = useState("");
   const [importScope, setImportScope] = useState<ImportScope>({ board_id: "", class_id: "", subject_id: "", chapter_id: "" });
   const [importJson, setImportJson] = useState("[]");
@@ -173,7 +175,8 @@ export default function ApprovedBankClient() {
       setRevisionId(targetRevisionId);
       setRevision(result.revision);
       setHistory(result.history);
-      setVisualIds(result.revision.visuals.map((visual) => visual.visual_id).join("\n"));
+      setQuestionVisualIds(result.revision.question_visuals.map((visual) => visual.visual_id).join("\n"));
+      setAnswerVisualIds(result.revision.answer_visuals.map((visual) => visual.visual_id).join("\n"));
       setNotice("Approved revision loaded.");
       setBusy(false);
     } catch (caught) {
@@ -234,13 +237,15 @@ export default function ApprovedBankClient() {
   async function saveVisuals() {
     begin();
     try {
-      const ids = visualIds.split(/\r?\n|,/).map((item) => item.trim()).filter(Boolean);
+      const questionIds = questionVisualIds.split(/\r?\n|,/).map((item) => item.trim()).filter(Boolean);
+      const answerIds = answerVisualIds.split(/\r?\n|,/).map((item) => item.trim()).filter(Boolean);
       await callAskAdmin<{ status: string }>({
         operation: "bank_set_visuals",
         revision_id: revisionId.trim(),
-        visual_ids: ids,
+        question_visual_ids: questionIds,
+        answer_visual_ids: answerIds,
       });
-      setNotice("Reviewed visual links updated. Block references and scope were revalidated server-side.");
+      setNotice("Question and answer visual links updated. Answer block references and scope were revalidated server-side.");
       setBusy(false);
     } catch (caught) {
       fail(caught, "Could not update visual links");
@@ -324,7 +329,7 @@ export default function ApprovedBankClient() {
 
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="text-xl font-semibold">Bulk import approved questions</h2>
-          <p className="mt-1 text-sm text-slate-500">Select the catalogue scope once, then upload a JSON array. Every item is validated before the transaction starts; imports are approved immediately.</p>
+          <p className="mt-1 text-sm text-slate-500">Select the catalogue scope once, then upload a JSON array. Use optional question_visual_ids and answer_visual_ids arrays; legacy visual_ids is rejected. Every item is validated before the transaction starts.</p>
           <div className="mt-4 grid gap-3">
             <div className="grid gap-3 md:grid-cols-2">
               <label className="text-sm font-medium">Board
@@ -378,7 +383,8 @@ export default function ApprovedBankClient() {
               <pre className="max-h-96 overflow-auto whitespace-pre-wrap rounded-lg bg-slate-950 p-4 text-xs text-slate-100">{JSON.stringify({
                 blocks: revision.blocks,
                 citations: revision.citations,
-                reviewed_visuals: revision.visuals,
+                question_visuals: revision.question_visuals,
+                answer_visuals: revision.answer_visuals,
               }, null, 2)}</pre>
 
               <div className="grid gap-3 border-t border-slate-200 pt-5 md:grid-cols-2">
@@ -388,8 +394,10 @@ export default function ApprovedBankClient() {
                   <button type="button" onClick={() => void addVariation()} disabled={busy || !variation.trim()} className="mt-2 rounded-lg bg-indigo-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Add and queue embedding</button>
                 </div>
                 <div>
-                  <h3 className="font-semibold">Reviewed visual links</h3>
-                  <textarea aria-label="Reviewed visual IDs" className={`${inputClass} mt-2 min-h-24 font-mono`} value={visualIds} onChange={(event) => setVisualIds(event.target.value)} />
+                  <h3 className="font-semibold">Question Visuals <span className="rounded bg-indigo-100 px-1.5 text-xs text-indigo-800">QUESTION</span></h3>
+                  <textarea aria-label="Question Visual IDs" className={`${inputClass} mt-2 min-h-24 font-mono`} value={questionVisualIds} onChange={(event) => setQuestionVisualIds(event.target.value)} />
+                  <h3 className="mt-3 font-semibold">Answer Visuals <span className="rounded bg-emerald-100 px-1.5 text-xs text-emerald-800">ANSWER</span></h3>
+                  <textarea aria-label="Answer Visual IDs" className={`${inputClass} mt-2 min-h-24 font-mono`} value={answerVisualIds} onChange={(event) => setAnswerVisualIds(event.target.value)} />
                   <button type="button" onClick={() => void saveVisuals()} disabled={busy} className="mt-2 rounded-lg bg-indigo-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Validate and save links</button>
                 </div>
               </div>

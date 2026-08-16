@@ -27,7 +27,7 @@ function safeError(error: unknown) {
     ? /^IMPORT_QUESTION_(\d+)_VISUAL_LINK_NOT_REVIEWED$/.exec(upstreamCode)
     : null;
   if (visualImportError) {
-    return [`Question ${visualImportError[1]}: visual_ids must reference one approved visual in the selected scope. No questions were imported.`, 409] as const;
+    return [`Question ${visualImportError[1]}: question_visual_ids and answer_visual_ids must reference approved visuals in the selected scope. No questions were imported.`, 409] as const;
   }
   if (typeof upstreamStatus === "number" && upstreamStatus >= 400 && upstreamStatus < 500) {
     return ["Admin operation rejected", upstreamStatus] as const;

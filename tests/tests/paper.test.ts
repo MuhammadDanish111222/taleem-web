@@ -28,6 +28,7 @@ describe("student test paper helpers", () => {
   it("rejects unexpected answer data from the paper-safe response", () => {
     expect(testPaperResponseSchema.safeParse(response).success).toBe(true);
     expect(testPaperResponseSchema.safeParse({ ...response, sections: [{ ...response.sections[0], questions: [{ ...response.sections[0].questions[0], correct_option: "A" }] }] }).success).toBe(false);
+    expect(testPaperResponseSchema.safeParse({ ...response, sections: [{ ...response.sections[0], questions: [{ ...response.sections[0].questions[0], answer_visuals: [{ visual_id: "private-answer-image" }] }] }] }).success).toBe(false);
   });
 
   it("keeps section order, numbering, attempt rules, options, visuals and filename in one model", () => {
