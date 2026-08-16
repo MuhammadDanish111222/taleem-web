@@ -1,7 +1,9 @@
 "use client";
 
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import type { TokenProvider } from "@/lib/api/ask";
 import type { PaperPresentationModel } from "@/lib/tests/paper";
+import { loadTestPaperVisual } from "@/lib/tests/visuals";
 
 const PAGE_WIDTH = 595.28;
 const PAGE_HEIGHT = 841.89;
@@ -21,7 +23,33 @@ function wrap(text: string, font: Awaited<ReturnType<PDFDocument["embedFont"]>>,
   return lines;
 }
 
-export async function generatePaperPdf(paper: PaperPresentationModel): Promise<Blob> {
+async function pngBytes(blob: Blob): Promise<Uint8Array> {
+  const source = URL.createObjectURL(blob);
+  try {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const element = new Image();
+      element.onload = () => resolve(element);
+      element.onerror = reject;
+      element.src = source;
+    });
+    const canvas = document.createElement("canvas");
+    canvas.width = image.naturalWidth;
+    canvas.height = image.naturalHeight;
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("CANVAS_UNAVAILABLE");
+    context.drawImage(image, 0, 0);
+    return new Uint8Array(await (await fetch(canvas.toDataURL("image/png"))).arrayBuffer());
+  } finally { URL.revokeObjectURL(source); }
+}
+
+async function embedVisual(pdf: PDFDocument, blob: Blob) {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  if (blob.type === "image/jpeg") return pdf.embedJpg(bytes);
+  if (blob.type === "image/png") return pdf.embedPng(bytes);
+  return pdf.embedPng(await pngBytes(blob));
+}
+
+export async function generatePaperPdf(paper: PaperPresentationModel, getToken?: TokenProvider): Promise<Blob> {
   const pdf = await PDFDocument.create();
   const regular = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
@@ -53,7 +81,19 @@ export async function generatePaperPdf(paper: PaperPresentationModel): Promise<B
       ensure(Math.min(questionLines.length * 14 + 30, 110));
       for (const line of questionLines) { page.drawText(line, { x: MARGIN, y, size: 10, font: regular }); y -= 14; }
       for (const option of question.options) text(`   ${option.key}. ${option.text}`, 10);
-      for (const visual of question.visuals) text(`   Visual: ${visual.title}${visual.description ? ` — ${visual.description}` : ""}`, 9, regular, rgb(0.25, 0.3, 0.38));
+      for (const visual of question.visuals) {
+        try {
+          if (!getToken) throw new Error("VISUAL_AUTH_REQUIRED");
+          const image = await embedVisual(pdf, await loadTestPaperVisual(paper, question.id, visual.visual_id, getToken));
+          const dimensions = image.scaleToFit(CONTENT_WIDTH, 260);
+          ensure(dimensions.height + 28);
+          page.drawImage(image, { x: MARGIN, y: y - dimensions.height, width: dimensions.width, height: dimensions.height });
+          y -= dimensions.height + 6;
+          text(visual.title, 9, regular, rgb(0.25, 0.3, 0.38));
+        } catch {
+          text(`   Visual unavailable: ${visual.title}${visual.description ? ` — ${visual.description}` : ""}`, 9, regular, rgb(0.25, 0.3, 0.38));
+        }
+      }
       y -= 5;
     }
     y -= 8;
@@ -61,8 +101,8 @@ export async function generatePaperPdf(paper: PaperPresentationModel): Promise<B
   return new Blob([Uint8Array.from(await pdf.save()).buffer], { type: "application/pdf" });
 }
 
-export async function downloadPaperPdf(paper: PaperPresentationModel) {
-  const blob = await generatePaperPdf(paper);
+export async function downloadPaperPdf(paper: PaperPresentationModel, getToken?: TokenProvider) {
+  const blob = await generatePaperPdf(paper, getToken);
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;

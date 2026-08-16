@@ -1,8 +1,10 @@
 "use client";
 
 import type { PaperPresentationModel } from "@/lib/tests/paper";
+import type { TokenProvider } from "@/lib/api/ask";
+import { PaperVisual } from "@/components/tests/PaperVisual";
 
-export function PaperPreview({ paper }: { paper: PaperPresentationModel }) {
+export function PaperPreview({ paper, getToken }: { paper: PaperPresentationModel; getToken: TokenProvider }) {
   return (
     <article className="mx-auto max-w-4xl rounded-xl border border-slate-300 bg-white p-5 shadow-sm sm:p-10">
       <header className="border-b-2 border-slate-800 pb-5 text-center">
@@ -26,7 +28,7 @@ export function PaperPreview({ paper }: { paper: PaperPresentationModel }) {
                 <li key={question.id} className="break-inside-avoid">
                   <p className="whitespace-pre-wrap leading-7 text-slate-950"><span className="font-semibold">Q{question.number}.</span> {question.question} <span className="text-sm text-slate-600">[{question.marks} marks]</span></p>
                   {question.options.length > 0 && <ol className="mt-2 space-y-1 pl-5 text-slate-800">{question.options.map((option) => <li key={option.key}>{option.key}. {option.text}</li>)}</ol>}
-                  {question.visuals.map((visual) => <figure key={visual.visual_id} className="mt-3 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700"><figcaption><span className="font-semibold">Visual: {visual.title}</span>{visual.description ? ` — ${visual.description}` : ""}. This visual is unavailable in this paper preview.</figcaption></figure>)}
+                  {question.visuals.map((visual) => <PaperVisual key={visual.visual_id} paper={paper} questionId={question.id} visual={visual} getToken={getToken} />)}
                 </li>
               ))}
             </ol>

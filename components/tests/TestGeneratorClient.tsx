@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { BoardSelector } from "@/components/selectors/BoardSelector";
 import { ClassSelector } from "@/components/selectors/ClassSelector";
 import { SubjectSelector } from "@/components/selectors/SubjectSelector";
@@ -42,6 +42,7 @@ export function TestGeneratorClient() {
   const [generating, setGenerating] = useState(false);
   const chapterKey = boardId && classId && subjectId ? `test-chapters-${boardId}-${classId}-${subjectId}` : null;
   const chapters = useCatalogueOptions(chapterKey, () => getChapters(boardId!, classId!, subjectId!));
+  const getToken = useCallback(() => user!.getIdToken(), [user]);
 
   useEffect(() => { setChapterIds([]); }, [boardId, classId, subjectId]);
   const totalQuestions = counts.mcq + counts.short + counts.long;
@@ -83,7 +84,7 @@ export function TestGeneratorClient() {
 
   if (authLoading) return <main className="mx-auto max-w-5xl p-6" aria-busy="true">Loading Test Generator…</main>;
   if (!user) return <main className="mx-auto max-w-xl p-6 sm:p-10"><section className="rounded-xl border bg-white p-6 shadow-sm"><h1 className="text-2xl font-bold">Test Paper Generator</h1><p className="mt-2 text-slate-700">Sign in to generate an ephemeral practice paper.</p><button type="button" onClick={() => void signInGoogle()} className="mt-5 rounded-md bg-blue-700 px-4 py-2 font-semibold text-white">Sign in with Google</button></section></main>;
-  if (paper) return <main className="min-h-screen bg-slate-100 p-4 sm:p-8"><div className="mx-auto mb-5 flex max-w-4xl flex-wrap gap-3"><button type="button" onClick={() => void downloadPaperPdf(paper)} className="rounded-md bg-blue-700 px-4 py-2 font-semibold text-white">Download PDF</button><button type="button" onClick={() => { setPaper(null); setRequestId(null); setError(null); }} className="rounded-md border border-slate-300 bg-white px-4 py-2 font-semibold text-slate-800">Edit Settings</button><button type="button" onClick={() => { setPaper(null); void generate(false); }} disabled={generating} className="rounded-md border border-slate-300 bg-white px-4 py-2 font-semibold text-slate-800 disabled:opacity-50">Generate New Paper</button></div><PaperPreview paper={paper} /></main>;
+  if (paper) return <main className="min-h-screen bg-slate-100 p-4 sm:p-8"><div className="mx-auto mb-5 flex max-w-4xl flex-wrap gap-3"><button type="button" onClick={() => void downloadPaperPdf(paper, getToken)} className="rounded-md bg-blue-700 px-4 py-2 font-semibold text-white">Download PDF</button><button type="button" onClick={() => { setPaper(null); setRequestId(null); setError(null); }} className="rounded-md border border-slate-300 bg-white px-4 py-2 font-semibold text-slate-800">Edit Settings</button><button type="button" onClick={() => { setPaper(null); void generate(false); }} disabled={generating} className="rounded-md border border-slate-300 bg-white px-4 py-2 font-semibold text-slate-800 disabled:opacity-50">Generate New Paper</button></div><PaperPreview paper={paper} getToken={getToken} /></main>;
 
   return <main className="min-h-screen bg-slate-50 p-4 sm:p-8"><section className="mx-auto max-w-3xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8"><h1 className="text-3xl font-bold text-slate-950">Test Paper Generator</h1><p className="mt-2 text-slate-600">Configure a paper, preview it, then download your copy. Generated papers are not saved.</p>
     <div className="mt-6 grid grid-cols-2 rounded-lg border border-slate-200 p-1"><button type="button" aria-pressed={mode === "board"} onClick={() => setMode("board")} className={`rounded-md px-3 py-2 text-sm font-semibold ${mode === "board" ? "bg-blue-700 text-white" : "text-slate-700"}`}>Board Paper Pattern</button><button type="button" aria-pressed={mode === "custom"} onClick={() => setMode("custom")} className={`rounded-md px-3 py-2 text-sm font-semibold ${mode === "custom" ? "bg-blue-700 text-white" : "text-slate-700"}`}>Custom Paper</button></div>

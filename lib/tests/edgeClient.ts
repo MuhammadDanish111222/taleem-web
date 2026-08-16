@@ -19,3 +19,8 @@ export async function callTestGeneratorEdge(token: string, body: unknown): Promi
   if (!response.ok) throw new TestGeneratorUpstreamError(response.status, payload);
   return payload;
 }
+
+/** Server-only companion to generation: resolves a paper-safe visual reference. */
+export async function callTestPaperVisualReference(token: string, body: unknown): Promise<unknown> {
+  return callTestGeneratorEdge(token, body);
+}

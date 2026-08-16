@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { PDFDocument } from "pdf-lib";
 import { balancedChapterDistribution, buildCustomSelectionSpec, buildPaperPresentationModel, safePaperFilename, testPaperResponseSchema } from "@/lib/tests/paper";
 import { generatePaperPdf } from "@/lib/tests/pdf";
@@ -48,5 +48,16 @@ describe("student test paper helpers", () => {
     expect(blob.size).toBeGreaterThan(500);
     const document = await PDFDocument.load(await blob.arrayBuffer());
     expect(document.getPage(0).getSize()).toMatchObject({ width: 595.28, height: 841.89 });
+  });
+
+  it("embeds a permitted question visual in the client-side PDF", async () => {
+    const image = Uint8Array.from(Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAF/gL+qI9N9wAAAABJRU5ErkJggg==", "base64"));
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(image, { headers: { "content-type": "image/png" } })));
+    try {
+      const blob = await generatePaperPdf(buildPaperPresentationModel(response), async () => "firebase-token");
+      expect(blob.size).toBeGreaterThan(900);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
