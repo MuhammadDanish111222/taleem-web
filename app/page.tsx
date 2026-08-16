@@ -23,6 +23,7 @@ export default function Home() {
             { title: "Past Papers", href: "/past-papers", description: "Practice published examination papers." },
             { title: "Single Ask", href: "/ai/ask", description: "Type one study question and get a clearly sourced answer." },
             { title: "Multiple Ask", href: "/ai/multiple-ask", description: "Upload one paper or paste questions for an ordered batch of answers." },
+            { title: "Test Generator", href: "/tests/generate", description: "Create a printable Board Pattern or Custom Paper." },
           ].map((item) => (
             <Link
               key={item.href}

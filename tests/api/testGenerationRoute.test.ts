@@ -40,6 +40,12 @@ describe("test generation BFF", () => {
       mode: "board", board_id: "punjab", class_id: "class-9", subject_id: "physics", seed: requestId,
     });
   });
+  it("accepts the existing validated custom selection spec and forwards it unchanged", async () => {
+    const spec = { duration_minutes: 120, sections: [{ key: "A", title: "MCQs", type: "mcq", select_count: 2, attempt_count: 2, marks_each: 1, difficulty_distribution: {}, chapter_distribution: { atoms: 2 } }] };
+    const response = await POST(post({ ...body, mode: "custom", spec }));
+    expect(response.status).toBe(200);
+    expect(callTestGeneratorEdge).toHaveBeenCalledWith("test-generator-jwt", expect.objectContaining({ mode: "custom", spec }));
+  });
   it("maps an unavailable Edge safely", async () => {
     vi.mocked(callTestGeneratorEdge).mockRejectedValue(new Error("network"));
     const response = await POST(post());
