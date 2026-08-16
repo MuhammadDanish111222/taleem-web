@@ -2,12 +2,15 @@ import 'server-only';
 import { SignJWT, importPKCS8 } from 'jose';
 import { v4 as uuidv4 } from 'uuid';
 
+export type InternalJwtAudience = 'taleem-ai-service' | 'taleem-test-generator';
+
 export async function signInternalJwt(
   uid: string,
   isAdmin: boolean = false,
   feature: string = 'general',
   requestId?: string,
   accountTier?: "anonymous" | "google" | "premium",
+  audience: InternalJwtAudience = 'taleem-ai-service',
 ): Promise<string> {
   const privateKey = process.env.INTERNAL_JWT_PRIVATE_KEY;
   const keyId = process.env.INTERNAL_JWT_KEY_ID;
@@ -37,10 +40,15 @@ export async function signInternalJwt(
     .setProtectedHeader({ alg: 'RS256', kid: keyId })
     .setIssuedAt()
     .setJti(jti)
-    .setAudience('taleem-ai-service')
+    .setAudience(audience)
     .setIssuer('taleem-web')
     .setExpirationTime('60s')
     .sign(key);
 
   return jwt;
+}
+
+/** A deliberately separate audience prevents this token from reaching Railway. */
+export async function signTestGeneratorJwt(uid: string, requestId: string): Promise<string> {
+  return signInternalJwt(uid, false, 'test_generator', requestId, undefined, 'taleem-test-generator');
 }
