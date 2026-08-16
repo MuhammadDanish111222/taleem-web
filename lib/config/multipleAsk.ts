@@ -8,5 +8,8 @@ import "server-only";
  */
 export function isMultipleAskRun1Enabled(): boolean {
   return process.env.MULTIPLE_ASK_TRANSPORT_DISABLED !== "true"
-    && process.env.MULTIPLE_ASK_RUN1_ENABLED !== "false";
+    // This is only a local transport exposure switch. It defaults closed and
+    // cannot make a database-disabled lifecycle state available: the service
+    // independently reads feature.multiple_ask before handling a request.
+    && process.env.MULTIPLE_ASK_RUN1_ENABLED === "true";
 }

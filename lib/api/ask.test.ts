@@ -173,7 +173,7 @@ describe("student Ask API client", () => {
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValue(
-        new Response(new Blob(["image-bytes"], { type: "image/png" }), {
+        new Response(new Uint8Array([105, 109, 97, 103, 101]), {
           status: 200,
           headers: { "Content-Type": "image/png" },
         }),

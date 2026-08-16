@@ -55,17 +55,28 @@ describe('Genuine HTTP Integration Test (BFF Helper & Next.js AI Probe Route -> 
     const pythonBin = fs.existsSync(pythonExe) ? pythonExe : 'python';
 
     let serverLogs = '';
-    serverProcess = spawn(pythonBin, ['-u', 'tests/run_fastapi_server.py', KEY_ID, String(port)], {
+    const childEnv: NodeJS.ProcessEnv = {
+      PATH: process.env.PATH ?? '',
+      SYSTEMROOT: process.env.SYSTEMROOT ?? '',
+      NODE_ENV: 'test',
+      MOCK_PUBLIC_KEY_PEM: publicKeyPem,
+      DATABASE_URL: 'postgresql://postgres:postgres@127.0.0.1:1/test_only',
+      REDIS_URL: 'redis://127.0.0.1:1/15',
+      APP_ENV: 'test',
+    };
+    const child = spawn(pythonBin, ['-u', 'tests/run_fastapi_server.py', KEY_ID, String(port)], {
       cwd: aiServiceDir,
-      env: { ...process.env, MOCK_PUBLIC_KEY_PEM: publicKeyPem },
+      env: childEnv,
       stdio: ['pipe', 'pipe', 'pipe'],
+      windowsHide: true,
     });
+    serverProcess = child;
 
-    serverProcess.stdout?.on('data', (data) => { serverLogs += data.toString(); });
-    serverProcess.stderr?.on('data', (data) => { serverLogs += data.toString(); });
+    child.stdout?.on('data', (data) => { serverLogs += data.toString(); });
+    child.stderr?.on('data', (data) => { serverLogs += data.toString(); });
 
-    serverProcess.stdin?.write(publicKeyPem);
-    serverProcess.stdin?.end();
+    child.stdin?.write(publicKeyPem);
+    child.stdin?.end();
 
     // Allow a cold Python/FastAPI import on slower Windows runners.
     let started = false;
@@ -91,9 +102,18 @@ describe('Genuine HTTP Integration Test (BFF Helper & Next.js AI Probe Route -> 
     }
   }, 35000);
 
-  afterEach(() => {
+  afterEach(async () => {
     if (serverProcess) {
-      serverProcess.kill('SIGKILL');
+      const pid = serverProcess.pid;
+      if (process.platform === 'win32' && pid) {
+        await new Promise<void>((resolve) => {
+          const taskkill = spawn('taskkill', ['/PID', String(pid), '/T', '/F'], { windowsHide: true });
+          taskkill.once('exit', () => resolve());
+          taskkill.once('error', () => resolve());
+        });
+      } else {
+        serverProcess.kill('SIGKILL');
+      }
       serverProcess = null;
     }
     process.env = originalEnv;
