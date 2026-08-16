@@ -33,11 +33,13 @@ describe("Module 5 Run 1 Multiple Ask BFF contracts", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     delete process.env.MULTIPLE_ASK_RUN1_ENABLED;
+    delete process.env.MULTIPLE_ASK_TRANSPORT_DISABLED;
     vi.mocked(getAdminAuth).mockReturnValue({ verifyIdToken: vi.fn() } as never);
     vi.mocked(getStudentAskAccountTier).mockResolvedValue("google");
   });
 
-  it("returns 404 before authentication or service work while disabled", async () => {
+  it("returns 404 before authentication or service work while transport-disabled", async () => {
+    process.env.MULTIPLE_ASK_TRANSPORT_DISABLED = "true";
     const response = await createSession(post("/api/ai/multiple-ask/upload-session", {}));
     expect(response.status).toBe(404);
     expect(getAdminAuth).not.toHaveBeenCalled();
