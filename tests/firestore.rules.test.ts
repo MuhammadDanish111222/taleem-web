@@ -38,6 +38,45 @@ describe('Firestore Security Rules', () => {
     await assertFails(setDoc(doc(db, 'site_settings/default'), { any: 'data' }));
   });
 
+  it('allows public reads of academy_settings/default when visible is true', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'academy_settings/default'), {
+        visible: true,
+        whatsapp_number: '923345405945',
+        whatsapp_message_template: 'Hello',
+      });
+    });
+    const db = getUnauthedDb();
+    await assertSucceeds(getDoc(doc(db, 'academy_settings/default')));
+  });
+
+  it('denies public reads of academy_settings/default when visible is false', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'academy_settings/default'), {
+        visible: false,
+        whatsapp_number: '923345405945',
+        whatsapp_message_template: 'Hello',
+      });
+    });
+    const db = getUnauthedDb();
+    await assertFails(getDoc(doc(db, 'academy_settings/default')));
+  });
+
+  it('denies public reads of academy_settings/default when document does not exist', async () => {
+    const db = getUnauthedDb();
+    await assertFails(getDoc(doc(db, 'academy_settings/default')));
+  });
+
+  it('denies public writes to academy_settings/default', async () => {
+    const db = getUnauthedDb();
+    await assertFails(setDoc(doc(db, 'academy_settings/default'), { visible: true }));
+  });
+
+  it('denies authenticated client writes to academy_settings/default', async () => {
+    const authDb = testEnv.authenticatedContext('user1').firestore();
+    await assertFails(setDoc(doc(authDb, 'academy_settings/default'), { visible: true }));
+  });
+
   it('allows reading active boards', async () => {
     await testEnv.withSecurityRulesDisabled(async (context) => {
       await setDoc(doc(context.firestore(), 'boards/board1'), { active: true });

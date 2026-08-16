@@ -18,6 +18,8 @@ const SAFE_CODES = new Set([
   "MULTIPLE_ASK_JOB_NOT_RESUMABLE",
   "MULTIPLE_ASK_CORRECTION_INVALID",
   "MULTIPLE_ASK_CORRECTION_IDEMPOTENCY_CONFLICT",
+  "FEATURE_COMING_SOON",
+  "NOT_FOUND",
 ]);
 
 export function mapMultipleAskServiceError(error: unknown): NextResponse {

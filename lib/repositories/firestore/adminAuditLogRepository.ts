@@ -13,14 +13,15 @@ export type AuditAction =
   | "upload_transaction.created"
   | "upload_transaction.state_changed"
   | "content.cleanup_completed"
-  | "user.subscription_changed";
+  | "user.subscription_changed"
+  | "academy_settings.updated";
 
 export interface AdminAuditLog {
   id: string;
   actorUid: string;
   requestId: string | null;
   action: AuditAction;
-  entityType: "resource" | "upload_transaction" | "user";
+  entityType: "resource" | "upload_transaction" | "user" | "academy_settings";
   entityId: string;
   before: Record<string, unknown> | null;
   after: Record<string, unknown> | null;

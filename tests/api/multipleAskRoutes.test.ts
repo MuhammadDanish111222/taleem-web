@@ -103,4 +103,49 @@ describe("Module 5 Run 1 Multiple Ask BFF contracts", () => {
       "/api/v1/internal/multiple-ask/text", "POST",
       { request_id: requestId, text: "What is velocity?", board_id: "punjab", class_id: "class-9", subject_id: "physics", chapter_id: "motion" }, "student-1", false, "multiple_ask", expect.any(Object));
   });
+
+  it("maps upstream 409 FEATURE_COMING_SOON safely to client", async () => {
+    process.env.MULTIPLE_ASK_RUN1_ENABLED = "true";
+    vi.mocked(getAdminAuth).mockReturnValue({ verifyIdToken: vi.fn().mockResolvedValue({ uid: "student-1" }) } as never);
+    const errorObj = new Error("Coming soon");
+    (errorObj as any).status = 409;
+    (errorObj as any).errorData = { detail: { code: "FEATURE_COMING_SOON" } };
+    vi.mocked(callAiService).mockRejectedValueOnce(errorObj);
+
+    const response = await createSession(post("/api/ai/multiple-ask/upload-session", {
+      requestId, inputKind: "pdf", contentType: "application/pdf", sizeBytes: 123, ...scope,
+    }));
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ error: { code: "FEATURE_COMING_SOON" } });
+  });
+
+  it("maps upstream 404 NOT_FOUND safely to client when feature is disabled", async () => {
+    process.env.MULTIPLE_ASK_RUN1_ENABLED = "true";
+    vi.mocked(getAdminAuth).mockReturnValue({ verifyIdToken: vi.fn().mockResolvedValue({ uid: "student-1" }) } as never);
+    const errorObj = new Error("Not found");
+    (errorObj as any).status = 404;
+    (errorObj as any).errorData = { detail: { code: "NOT_FOUND" } };
+    vi.mocked(callAiService).mockRejectedValueOnce(errorObj);
+
+    const response = await createSession(post("/api/ai/multiple-ask/upload-session", {
+      requestId, inputKind: "pdf", contentType: "application/pdf", sizeBytes: 123, ...scope,
+    }));
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({ error: { code: "NOT_FOUND" } });
+  });
+
+  it("maps upstream 503 MULTIPLE_ASK_UNAVAILABLE safely to client", async () => {
+    process.env.MULTIPLE_ASK_RUN1_ENABLED = "true";
+    vi.mocked(getAdminAuth).mockReturnValue({ verifyIdToken: vi.fn().mockResolvedValue({ uid: "student-1" }) } as never);
+    const errorObj = new Error("Service unavailable");
+    (errorObj as any).status = 503;
+    (errorObj as any).errorData = { detail: { code: "MULTIPLE_ASK_UNAVAILABLE" } };
+    vi.mocked(callAiService).mockRejectedValueOnce(errorObj);
+
+    const response = await createSession(post("/api/ai/multiple-ask/upload-session", {
+      requestId, inputKind: "pdf", contentType: "application/pdf", sizeBytes: 123, ...scope,
+    }));
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: { code: "MULTIPLE_ASK_UNAVAILABLE" } });
+  });
 });

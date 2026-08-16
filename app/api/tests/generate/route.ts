@@ -8,7 +8,14 @@ import { callTestGeneratorEdge, TestGeneratorUpstreamError } from "@/lib/tests/e
 import { takeTestGenerationSlot } from "@/lib/tests/rateLimit";
 
 const MAX_BODY_BYTES = 32_000;
-const SAFE_CODES = new Set(["NO_ACTIVE_BLUEPRINT", "INVALID_CUSTOM_SPEC", "INSUFFICIENT_QUESTION_BANK", "INVALID_REQUEST"]);
+const SAFE_CODES = new Set([
+  "NO_ACTIVE_BLUEPRINT",
+  "INVALID_CUSTOM_SPEC",
+  "INSUFFICIENT_QUESTION_BANK",
+  "INVALID_REQUEST",
+  "FEATURE_COMING_SOON",
+  "FEATURE_NOT_ENABLED",
+]);
 
 function error(code: string, status: number, message: string) {
   return jsonNoStore({ error: { code, message } }, status);
@@ -50,7 +57,10 @@ export async function POST(request: NextRequest) {
     if (caught instanceof TestGeneratorUpstreamError) {
       const code = typeof (caught.payload as { error?: { code?: unknown } })?.error?.code === "string"
         ? (caught.payload as { error: { code: string } }).error.code : "";
-      if (SAFE_CODES.has(code)) return error(code, caught.status === 409 ? 409 : 400, "Test generation could not be completed");
+      if (SAFE_CODES.has(code)) {
+        const status = caught.status === 409 ? 409 : caught.status === 404 ? 404 : 400;
+        return error(code, status, "Test generation could not be completed");
+      }
     }
     return error("TEST_GENERATOR_UNAVAILABLE", 503, "Test generator is temporarily unavailable");
   }
