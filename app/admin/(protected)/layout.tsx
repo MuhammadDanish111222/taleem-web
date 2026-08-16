@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import LogoutButton from "./LogoutButton";
 import { Suspense } from "react";
+import { notFound } from "next/navigation";
+import { isAdminPanelEnabled } from "@/lib/config/adminPanel";
 
 async function AuthGuard({ children }: { children: React.ReactNode }) {
   let decodedToken;
@@ -61,6 +63,12 @@ async function AuthGuard({ children }: { children: React.ReactNode }) {
             Ask Prompts
           </Link>
           <Link
+            href="/admin/ai-settings"
+            className="flex items-center gap-3 px-4 py-3 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/50 rounded-lg transition-colors"
+          >
+            AI Settings
+          </Link>
+          <Link
             href="/admin/ask/candidates"
             className="flex items-center gap-3 px-4 py-3 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/50 rounded-lg transition-colors"
           >
@@ -110,6 +118,9 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // Keep the local-only gate outside the shared auth layout as well: a disabled
+  // panel must be a 404 before any protected admin page does session work.
+  if (!isAdminPanelEnabled()) notFound();
   return (
     <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading admin...</div>}>
       <AuthGuard>{children}</AuthGuard>
