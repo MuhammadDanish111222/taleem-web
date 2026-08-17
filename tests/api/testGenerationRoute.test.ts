@@ -3,12 +3,14 @@ import { NextRequest } from "next/server";
 import { POST } from "@/app/api/tests/generate/route";
 import { getAdminAuth } from "@/lib/firebase/admin";
 import { signTestGeneratorJwt } from "@/lib/internalAuth/signInternalJwt";
-import { callTestGeneratorEdge } from "@/lib/tests/edgeClient";
+import { callTestGeneratorEdge, TestGeneratorUpstreamError } from "@/lib/tests/edgeClient";
 import { clearTestGenerationRateLimitForTests } from "@/lib/tests/rateLimit";
 
 vi.mock("@/lib/firebase/admin", () => ({ getAdminAuth: vi.fn() }));
 vi.mock("@/lib/internalAuth/signInternalJwt", () => ({ signTestGeneratorJwt: vi.fn() }));
-vi.mock("@/lib/tests/edgeClient", () => ({ callTestGeneratorEdge: vi.fn(), TestGeneratorUpstreamError: class extends Error {} }));
+vi.mock("@/lib/tests/edgeClient", () => ({ callTestGeneratorEdge: vi.fn(), TestGeneratorUpstreamError: class extends Error {
+  constructor(public status: number, public payload: unknown) { super("TEST_GENERATOR_UPSTREAM"); }
+} }));
 
 const requestId = "123e4567-e89b-42d3-a456-426614174000";
 const body = { mode: "board", boardId: "punjab", classId: "class-9", subjectId: "physics", requestId };
@@ -45,6 +47,21 @@ describe("test generation BFF", () => {
     const response = await POST(post({ ...body, mode: "custom", spec }));
     expect(response.status).toBe(200);
     expect(callTestGeneratorEdge).toHaveBeenCalledWith("test-generator-jwt", expect.objectContaining({ mode: "custom", spec }));
+  });
+  it("preserves disabled feature as 404 NOT_FOUND", async () => {
+    vi.mocked(callTestGeneratorEdge).mockRejectedValue(
+      new TestGeneratorUpstreamError(404, { error: { code: "NOT_FOUND" } }),
+    );
+    const response = await POST(post());
+    expect(response.status).toBe(404); expect((await response.json()).error.code).toBe("NOT_FOUND");
+  });
+
+  it("preserves coming-soon feature as 409 FEATURE_COMING_SOON", async () => {
+    vi.mocked(callTestGeneratorEdge).mockRejectedValue(
+      new TestGeneratorUpstreamError(409, { error: { code: "FEATURE_COMING_SOON" } }),
+    );
+    const response = await POST(post());
+    expect(response.status).toBe(409); expect((await response.json()).error.code).toBe("FEATURE_COMING_SOON");
   });
   it("maps an unavailable Edge safely", async () => {
     vi.mocked(callTestGeneratorEdge).mockRejectedValue(new Error("network"));

@@ -15,6 +15,7 @@ const SAFE_CODES = new Set([
   "INVALID_REQUEST",
   "FEATURE_COMING_SOON",
   "FEATURE_NOT_ENABLED",
+  "NOT_FOUND",
 ]);
 
 function error(code: string, status: number, message: string) {
