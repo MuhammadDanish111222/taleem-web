@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { academySettingsMutationSchema } from "@/lib/validation/academySettings";
 
 async function csrf(): Promise<string> {
   const response = await fetch("/api/auth/csrf", { cache: "no-store" });
@@ -13,17 +14,21 @@ export default function AcademySettingsClient() {
   const [whatsappNumber, setWhatsappNumber] = useState("");
   const [messageTemplate, setMessageTemplate] = useState("");
   const [loading, setLoading] = useState(true);
+  const [loadedSuccessfully, setLoadedSuccessfully] = useState(false);
   const [saving, setSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [isError, setIsError] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setStatusMessage("");
+    setIsError(false);
     try {
       const response = await fetch("/api/admin/academy-settings", { cache: "no-store" });
       if (!response.ok) {
         setStatusMessage("Settings are unavailable.");
         setIsError(true);
+        setLoadedSuccessfully(false);
         return;
       }
       const json = await response.json();
@@ -32,9 +37,11 @@ export default function AcademySettingsClient() {
         setWhatsappNumber(json.data.whatsapp_number ?? "");
         setMessageTemplate(json.data.whatsapp_message_template ?? "");
       }
+      setLoadedSuccessfully(true);
     } catch {
       setStatusMessage("Failed to load academy settings.");
       setIsError(true);
+      setLoadedSuccessfully(false);
     } finally {
       setLoading(false);
     }
@@ -44,9 +51,17 @@ export default function AcademySettingsClient() {
     void load();
   }, [load]);
 
+  const validationResult = academySettingsMutationSchema.safeParse({
+    visible,
+    whatsapp_number: whatsappNumber,
+    whatsapp_message_template: messageTemplate,
+  });
+  const formValid = validationResult.success;
+  const canSave = loadedSuccessfully && formValid && !saving && !loading;
+
   const previewNumber = whatsappNumber.replace(/^\+/, "").replace(/[\s()\-]/g, "");
   const previewUrl =
-    previewNumber.length >= 7 && previewNumber.length <= 15
+    formValid && previewNumber.length >= 7 && previewNumber.length <= 15
       ? `https://wa.me/${previewNumber}${
           messageTemplate.trim() ? `?text=${encodeURIComponent(messageTemplate.trim())}` : ""
         }`
@@ -54,7 +69,7 @@ export default function AcademySettingsClient() {
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (loading || saving) return;
+    if (!canSave) return;
 
     setSaving(true);
     setStatusMessage("");
@@ -77,9 +92,9 @@ export default function AcademySettingsClient() {
 
       const data = await response.json().catch(() => ({}));
       if (response.ok) {
+        await load();
         setStatusMessage("Academy settings saved successfully.");
         setIsError(false);
-        await load();
       } else {
         const errorDetail =
           data.errors && Array.isArray(data.errors)
@@ -96,6 +111,8 @@ export default function AcademySettingsClient() {
     }
   };
 
+  const inputsDisabled = loading || saving || !loadedSuccessfully;
+
   return (
     <section className="p-8 max-w-3xl">
       <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Academy Settings</h1>
@@ -110,7 +127,7 @@ export default function AcademySettingsClient() {
             id="visible-toggle"
             type="checkbox"
             checked={visible}
-            disabled={loading}
+            disabled={inputsDisabled}
             onChange={(e) => setVisible(e.target.checked)}
             className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
           />
@@ -129,8 +146,8 @@ export default function AcademySettingsClient() {
           <input
             id="whatsapp-number"
             type="text"
-            required={visible}
-            disabled={loading}
+            required
+            disabled={inputsDisabled}
             value={whatsappNumber}
             onChange={(e) => setWhatsappNumber(e.target.value)}
             placeholder="923345405945"
@@ -146,7 +163,7 @@ export default function AcademySettingsClient() {
             id="message-template"
             rows={3}
             maxLength={500}
-            disabled={loading}
+            disabled={inputsDisabled}
             value={messageTemplate}
             onChange={(e) => setMessageTemplate(e.target.value)}
             placeholder="Salam Sir Danish, I have a question regarding Taleem AI..."
@@ -171,11 +188,20 @@ export default function AcademySettingsClient() {
         <div className="flex items-center gap-4">
           <button
             type="submit"
-            disabled={loading || saving}
+            disabled={!canSave}
             className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
           >
             {loading ? "Loading..." : saving ? "Saving..." : "Save Settings"}
           </button>
+          {!loading && !loadedSuccessfully && isError && (
+            <button
+              type="button"
+              onClick={() => void load()}
+              className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+            >
+              Retry
+            </button>
+          )}
           {statusMessage && (
             <p
               role="status"
