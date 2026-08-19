@@ -75,12 +75,12 @@ export default function UsersAdminClient() {
   };
 
   return (
-    <div className="p-8 text-slate-100">
+    <div className="p-8 text-slate-900">
       <div className="mx-auto max-w-6xl space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-white">Users</h1>
-            <p className="mt-1 text-sm text-slate-400">
+            <h1 className="text-3xl font-bold text-slate-900">Users</h1>
+            <p className="mt-1 text-sm font-medium text-slate-600">
               Student identity and one subscription switch. No chat history is stored.
             </p>
           </div>
@@ -88,53 +88,53 @@ export default function UsersAdminClient() {
             type="button"
             onClick={() => void load()}
             disabled={loading}
-            className="rounded-lg border border-slate-600 px-4 py-2 text-sm font-medium hover:bg-slate-800 disabled:opacity-60"
+            className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50 disabled:opacity-60"
           >
             Refresh
           </button>
         </div>
 
         {error && (
-          <div className="rounded-lg border border-red-800 bg-red-950/40 p-4 text-red-200">
+          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-800">
             {error}
           </div>
         )}
 
-        <div className="overflow-hidden rounded-xl border border-slate-700 bg-slate-900">
+        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-700 text-sm">
-              <thead className="bg-slate-800 text-left text-slate-300">
+            <table className="min-w-full divide-y divide-slate-200 text-sm">
+              <thead className="bg-slate-100 text-left text-xs font-bold uppercase tracking-wider text-slate-800">
                 <tr>
-                  <th className="px-5 py-3 font-semibold">User</th>
-                  <th className="px-5 py-3 font-semibold">Sign-in</th>
-                  <th className="px-5 py-3 font-semibold">Created</th>
-                  <th className="px-5 py-3 font-semibold">Subscription</th>
-                  <th className="px-5 py-3 font-semibold">Action</th>
+                  <th className="px-5 py-3.5">User</th>
+                  <th className="px-5 py-3.5">Sign-in</th>
+                  <th className="px-5 py-3.5">Created</th>
+                  <th className="px-5 py-3.5">Subscription</th>
+                  <th className="px-5 py-3.5">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800">
+              <tbody className="divide-y divide-slate-200 text-slate-900">
                 {users.map((user) => (
-                  <tr key={user.uid}>
+                  <tr key={user.uid} className="hover:bg-slate-50">
                     <td className="px-5 py-4">
-                      <div className="font-medium text-white">
+                      <div className="font-semibold text-slate-900">
                         {user.displayName || user.email || "Anonymous user"}
                       </div>
                       <div className="mt-1 max-w-xs truncate font-mono text-xs text-slate-500">
                         {user.uid}
                       </div>
                     </td>
-                    <td className="px-5 py-4 capitalize text-slate-300">
+                    <td className="px-5 py-4 capitalize font-medium text-slate-800">
                       {user.authProvider}
                     </td>
-                    <td className="px-5 py-4 text-slate-300">
+                    <td className="px-5 py-4 font-medium text-slate-800">
                       {new Date(user.createdAt).toLocaleDateString()}
                     </td>
                     <td className="px-5 py-4">
                       <span
                         className={`rounded-full px-3 py-1 text-xs font-semibold ${
                           user.subscriptionActive
-                            ? "bg-emerald-950 text-emerald-300"
-                            : "bg-slate-800 text-slate-400"
+                            ? "bg-emerald-100 text-emerald-800"
+                            : "bg-slate-100 text-slate-600"
                         }`}
                       >
                         {user.subscriptionActive ? "On" : "Off"}
@@ -145,9 +145,9 @@ export default function UsersAdminClient() {
                         type="button"
                         disabled={changingUid === user.uid}
                         onClick={() => void changeSubscription(user)}
-                        className={`rounded-lg px-3 py-2 text-xs font-semibold disabled:opacity-60 ${
+                        className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold disabled:opacity-60 ${
                           user.subscriptionActive
-                            ? "bg-red-950 text-red-200 hover:bg-red-900"
+                            ? "bg-red-100 text-red-800 hover:bg-red-200"
                             : "bg-emerald-700 text-white hover:bg-emerald-600"
                         }`}
                       >
@@ -165,12 +165,12 @@ export default function UsersAdminClient() {
           </div>
 
           {!loading && users.length === 0 && (
-            <div className="p-12 text-center text-slate-400">
+            <div className="p-12 text-center text-sm font-medium text-slate-500">
               No student profiles exist yet.
             </div>
           )}
           {loading && (
-            <div className="p-12 text-center text-slate-400">Loading users…</div>
+            <div className="p-12 text-center text-sm font-medium text-slate-500">Loading users…</div>
           )}
         </div>
 
@@ -179,7 +179,7 @@ export default function UsersAdminClient() {
             type="button"
             disabled={loadingMore}
             onClick={() => void load(nextCursor)}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500 disabled:opacity-60"
+            className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-600 disabled:opacity-60"
           >
             {loadingMore ? "Loading…" : "Load more"}
           </button>

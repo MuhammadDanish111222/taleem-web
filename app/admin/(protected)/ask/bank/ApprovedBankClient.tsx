@@ -285,16 +285,16 @@ export default function ApprovedBankClient() {
   return (
     <section className="mx-auto max-w-7xl p-6 text-slate-900">
       <p className="text-sm font-semibold uppercase tracking-wider text-indigo-600">Local-only Module 4</p>
-      <h1 className="text-3xl font-bold">Approved Question–Answer Bank</h1>
-      <p className="mt-2 text-slate-600">Admin-authored and imported entries become approved only after strict validation. They never enter the generated-candidate queue.</p>
+      <h1 className="text-3xl font-bold text-slate-900">Approved Question–Answer Bank</h1>
+      <p className="mt-2 text-sm font-medium text-slate-600">Admin-authored and imported entries become approved only after strict validation. They never enter the generated-candidate queue.</p>
 
-      {error ? <p role="alert" className="my-4 rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p> : null}
-      {notice ? <p role="status" className="my-4 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">{notice}</p> : null}
+      {error ? <p role="alert" className="my-4 rounded-lg bg-red-50 p-3 text-sm font-medium text-red-800 border border-red-200">{error}</p> : null}
+      {notice ? <p role="status" className="my-4 rounded-lg bg-emerald-50 p-3 text-sm font-medium text-emerald-800 border border-emerald-200">{notice}</p> : null}
 
       <div className="mt-6 grid gap-6">
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-xl font-semibold">Approved questions</h2>
-          <p className="mt-1 text-sm text-slate-500">Only active approved revisions are listed. Filters are applied in PostgreSQL before the bounded result is returned.</p>
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm text-slate-900">
+          <h2 className="text-xl font-bold text-slate-900">Approved questions</h2>
+          <p className="mt-1 text-sm font-medium text-slate-600">Only active approved revisions are listed. Filters are applied in PostgreSQL before the bounded result is returned.</p>
           <div className="mt-4 grid gap-3 md:grid-cols-3">
             <input aria-label="Bank board filter" className={inputClass} placeholder="Board ID" value={filterBoard} onChange={(event) => setFilterBoard(event.target.value)} />
             <input aria-label="Bank class filter" className={inputClass} placeholder="Class ID" value={filterClass} onChange={(event) => setFilterClass(event.target.value)} />
@@ -305,150 +305,150 @@ export default function ApprovedBankClient() {
             </select>
             <input aria-label="Bank source filter" className={inputClass} placeholder="Source (admin_authored, admin_import…)" value={filterSource} onChange={(event) => setFilterSource(event.target.value)} />
           </div>
-          <button type="button" onClick={() => void listApproved()} disabled={busy} className="mt-3 rounded-lg bg-indigo-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Load approved bank</button>
+          <button type="button" onClick={() => void listApproved()} disabled={busy} className="mt-3 rounded-lg bg-indigo-700 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-600 disabled:opacity-50 shadow-sm">Load approved bank</button>
           <div className="mt-4 grid gap-2">
             {items.map((item) => (
-              <button key={item.revision_id} type="button" onClick={() => void inspectRevision(item.revision_id)} className="rounded-lg border border-slate-200 p-3 text-left text-sm hover:border-indigo-400">
-                <span className="font-semibold">{item.question_text}</span>
-                <span className="mt-1 block text-xs text-slate-500">
+              <button key={item.revision_id} type="button" onClick={() => void inspectRevision(item.revision_id)} className="rounded-xl border border-slate-200 p-3.5 text-left text-sm hover:border-indigo-400 hover:bg-indigo-50/30 transition-colors">
+                <span className="font-bold text-slate-900">{item.question_text}</span>
+                <span className="mt-1 block text-xs font-semibold text-slate-700">
                   {item.board_id}/{item.class_id}/{item.subject_id}{item.chapter_id ? `/${item.chapter_id}` : ""} · {item.answer_mode} · {item.source} · v{item.version_no}
                 </span>
-                <span className="mt-1 block text-xs text-slate-500">Embedding: {item.embedding_status} · Variations: {item.variation_count} · Approved {new Date(item.approved_at).toLocaleString()}</span>
+                <span className="mt-1 block text-xs font-medium text-slate-500">Embedding: {item.embedding_status} · Variations: {item.variation_count} · Approved {new Date(item.approved_at).toLocaleString()}</span>
               </button>
             ))}
-            {!busy && items.length === 0 ? <p className="text-sm text-slate-500">No approved bank entries loaded.</p> : null}
+            {!busy && items.length === 0 ? <p className="text-sm font-medium text-slate-500">No approved bank entries loaded.</p> : null}
           </div>
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-xl font-semibold">Create admin-authored approved question</h2>
-          <p className="mb-5 mt-1 text-sm text-slate-500">The successful action records approved status, actor, timestamp, and an audit entry.</p>
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm text-slate-900">
+          <h2 className="text-xl font-bold text-slate-900">Create admin-authored approved question</h2>
+          <p className="mb-5 mt-1 text-sm font-medium text-slate-600">The successful action records approved status, actor, timestamp, and an audit entry.</p>
           <ApprovedQuestionEditor value={draft} onChange={setDraft} idPrefix="bank-create" />
-          <button type="button" onClick={() => void createApproved()} disabled={busy} className="mt-4 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Create approved revision</button>
+          <button type="button" onClick={() => void createApproved()} disabled={busy} className="mt-4 rounded-lg bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-600 disabled:opacity-50 shadow-sm">Create approved revision</button>
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-xl font-semibold">Bulk import approved questions</h2>
-          <p className="mt-1 text-sm text-slate-500">Select the catalogue scope once, then upload a JSON array. Use optional question_visual_ids and answer_visual_ids arrays; legacy visual_ids is rejected. Every item is validated before the transaction starts.</p>
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm text-slate-900">
+          <h2 className="text-xl font-bold text-slate-900">Bulk import approved questions</h2>
+          <p className="mt-1 text-sm font-medium text-slate-600">Select the catalogue scope once, then upload a JSON array. Use optional question_visual_ids and answer_visual_ids arrays; legacy visual_ids is rejected. Every item is validated before the transaction starts.</p>
           <div className="mt-4 grid gap-3">
             <div className="grid gap-3 md:grid-cols-2">
-              <label className="text-sm font-medium">Board
+              <label className="text-sm font-semibold text-slate-800">Board
                 <select aria-label="Import board" className={`${inputClass} mt-1`} value={importScope.board_id} onChange={(event) => setImportScope({ board_id: event.target.value, class_id: "", subject_id: "", chapter_id: "" })}>
                   <option value="">{boards.loading ? "Loading boards..." : "Select Board"}</option>
                   {boards.data?.map((item) => <option key={item.slug} value={item.slug}>{item.name}</option>)}
                 </select>
               </label>
-              <label className="text-sm font-medium">Class
+              <label className="text-sm font-semibold text-slate-800">Class
                 <select aria-label="Import class" className={`${inputClass} mt-1`} value={importScope.class_id} disabled={!importScope.board_id || classes.loading} onChange={(event) => setImportScope({ ...importScope, class_id: event.target.value, subject_id: "", chapter_id: "" })}>
                   <option value="">{classes.loading ? "Loading classes..." : "Select Class"}</option>
                   {classes.data?.map((item) => <option key={item.slug} value={item.slug}>{item.name}</option>)}
                 </select>
               </label>
-              <label className="text-sm font-medium">Subject
+              <label className="text-sm font-semibold text-slate-800">Subject
                 <select aria-label="Import subject" className={`${inputClass} mt-1`} value={importScope.subject_id} disabled={!importScope.class_id || subjects.loading} onChange={(event) => setImportScope({ ...importScope, subject_id: event.target.value, chapter_id: "" })}>
                   <option value="">{subjects.loading ? "Loading subjects..." : "Select Subject"}</option>
                   {subjects.data?.map((item) => <option key={item.slug} value={item.slug}>{item.name}</option>)}
                 </select>
               </label>
-              <label className="text-sm font-medium">Chapter
+              <label className="text-sm font-semibold text-slate-800">Chapter
                 <select aria-label="Import chapter" className={`${inputClass} mt-1`} value={importScope.chapter_id} disabled={!importScope.subject_id || chapters.loading} onChange={(event) => setImportScope({ ...importScope, chapter_id: event.target.value })}>
                   <option value="">{chapters.loading ? "Loading chapters..." : "Select Chapter"}</option>
                   {chapters.data?.map((item) => <option key={item.slug} value={item.slug}>{item.chapter_number}. {item.title}</option>)}
                 </select>
               </label>
             </div>
-            <label className="text-sm font-medium">Question Bank JSON
-              <input aria-label="Question Bank JSON file" type="file" accept="application/json,.json" className="mt-1 block text-sm" onChange={(event) => void selectImportFile(event.target.files?.[0] ?? null)} />
+            <label className="text-sm font-semibold text-slate-800">Question Bank JSON
+              <input aria-label="Question Bank JSON file" type="file" accept="application/json,.json" className="mt-1 block text-sm font-medium text-slate-800" onChange={(event) => void selectImportFile(event.target.files?.[0] ?? null)} />
             </label>
-            {importFileName ? <p className="text-xs text-slate-500">Loaded: {importFileName}</p> : null}
+            {importFileName ? <p className="text-xs font-semibold text-slate-600">Loaded: {importFileName}</p> : null}
             <textarea aria-label="Approved questions import JSON" className={`${inputClass} min-h-52 font-mono`} value={importJson} onChange={(event) => { setImportJson(event.target.value); setImportFileName(""); }} spellCheck={false} />
-            <button type="button" onClick={() => void importApproved()} disabled={busy || !importScopeComplete} className="w-fit rounded-lg bg-indigo-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Validate and import JSON</button>
+            <button type="button" onClick={() => void importApproved()} disabled={busy || !importScopeComplete} className="w-fit rounded-lg bg-indigo-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-600 disabled:opacity-50 shadow-sm">Validate and import JSON</button>
           </div>
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-xl font-semibold">Inspect and manage an approved revision</h2>
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm text-slate-900">
+          <h2 className="text-xl font-bold text-slate-900">Inspect and manage an approved revision</h2>
           <div className="mt-4 flex flex-col gap-2 sm:flex-row">
             <input aria-label="Approved revision ID" className={inputClass} placeholder="Approved revision UUID" value={revisionId} onChange={(event) => setRevisionId(event.target.value)} />
-            <button type="button" onClick={() => void inspectRevision()} disabled={busy || !revisionId.trim()} className="shrink-0 rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Open revision</button>
-            <button type="button" onClick={() => void loadHistory()} disabled={busy || !revisionId.trim()} className="shrink-0 rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold disabled:opacity-50">Load history</button>
+            <button type="button" onClick={() => void inspectRevision()} disabled={busy || !revisionId.trim()} className="shrink-0 rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-50 shadow-sm">Open revision</button>
+            <button type="button" onClick={() => void loadHistory()} disabled={busy || !revisionId.trim()} className="shrink-0 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-50 shadow-sm">Load history</button>
           </div>
           {revision ? (
             <div className="mt-5 grid gap-5">
-              <dl className="grid gap-2 rounded-lg bg-slate-50 p-4 text-sm md:grid-cols-3">
-                <div><dt className="font-medium">Scope</dt><dd>{revision.board_id}/{revision.class_id}/{revision.subject_id}{revision.chapter_id ? `/${revision.chapter_id}` : ""}</dd></div>
-                <div><dt className="font-medium">Mode/style</dt><dd>{revision.answer_mode}/{revision.answer_style}</dd></div>
-                <div><dt className="font-medium">Revision</dt><dd className="break-all font-mono text-xs">{revision.revision_id}</dd></div>
+              <dl className="grid gap-2 rounded-xl bg-slate-50 border border-slate-200 p-4 text-sm md:grid-cols-3">
+                <div><dt className="font-semibold text-slate-600">Scope</dt><dd className="font-bold text-slate-900">{revision.board_id}/{revision.class_id}/{revision.subject_id}{revision.chapter_id ? `/${revision.chapter_id}` : ""}</dd></div>
+                <div><dt className="font-semibold text-slate-600">Mode/style</dt><dd className="font-bold text-slate-900">{revision.answer_mode}/{revision.answer_style}</dd></div>
+                <div><dt className="font-semibold text-slate-600">Revision</dt><dd className="break-all font-mono text-xs font-medium text-slate-900">{revision.revision_id}</dd></div>
               </dl>
-              <pre className="max-h-96 overflow-auto whitespace-pre-wrap rounded-lg bg-slate-950 p-4 text-xs text-slate-100">{JSON.stringify({
+              <pre className="max-h-96 overflow-auto whitespace-pre-wrap rounded-xl bg-slate-950 p-4 text-xs text-slate-100 font-mono">{JSON.stringify({
                 blocks: revision.blocks,
                 citations: revision.citations,
                 question_visuals: revision.question_visuals,
                 answer_visuals: revision.answer_visuals,
               }, null, 2)}</pre>
 
-              <div className="grid gap-3 border-t border-slate-200 pt-5 md:grid-cols-2">
+              <div className="grid gap-4 border-t border-slate-200 pt-5 md:grid-cols-2">
                 <div>
-                  <h3 className="font-semibold">Add approved variation</h3>
+                  <h3 className="font-bold text-base text-slate-900">Add approved variation</h3>
                   <textarea aria-label="Approved question variation" className={`${inputClass} mt-2 min-h-24`} placeholder="Student paraphrase" value={variation} onChange={(event) => setVariation(event.target.value)} maxLength={4000} />
-                  <button type="button" onClick={() => void addVariation()} disabled={busy || !variation.trim()} className="mt-2 rounded-lg bg-indigo-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Add and queue embedding</button>
+                  <button type="button" onClick={() => void addVariation()} disabled={busy || !variation.trim()} className="mt-2 rounded-lg bg-indigo-700 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-600 disabled:opacity-50 shadow-sm">Add and queue embedding</button>
                 </div>
                 <div>
-                  <h3 className="font-semibold">Question Visuals <span className="rounded bg-indigo-100 px-1.5 text-xs text-indigo-800">QUESTION</span></h3>
+                  <h3 className="font-bold text-base text-slate-900">Question Visuals <span className="rounded bg-indigo-100 px-2 py-0.5 text-xs font-semibold text-indigo-800">QUESTION</span></h3>
                   <textarea aria-label="Question Visual IDs" className={`${inputClass} mt-2 min-h-24 font-mono`} value={questionVisualIds} onChange={(event) => setQuestionVisualIds(event.target.value)} />
-                  <h3 className="mt-3 font-semibold">Answer Visuals <span className="rounded bg-emerald-100 px-1.5 text-xs text-emerald-800">ANSWER</span></h3>
+                  <h3 className="mt-3 font-bold text-base text-slate-900">Answer Visuals <span className="rounded bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">ANSWER</span></h3>
                   <textarea aria-label="Answer Visual IDs" className={`${inputClass} mt-2 min-h-24 font-mono`} value={answerVisualIds} onChange={(event) => setAnswerVisualIds(event.target.value)} />
-                  <button type="button" onClick={() => void saveVisuals()} disabled={busy} className="mt-2 rounded-lg bg-indigo-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Validate and save links</button>
+                  <button type="button" onClick={() => void saveVisuals()} disabled={busy} className="mt-2 rounded-lg bg-indigo-700 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-600 disabled:opacity-50 shadow-sm">Validate and save links</button>
                 </div>
               </div>
 
               <div className="border-t border-slate-200 pt-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <h3 className="font-semibold">Embedding operations</h3>
-                    <p className="text-sm text-slate-500">Only approved active revisions and active variations can be reset and requeued.</p>
+                    <h3 className="font-bold text-base text-slate-900">Embedding operations</h3>
+                    <p className="text-sm font-medium text-slate-600">Only approved active revisions and active variations can be reset and requeued.</p>
                   </div>
-                  <button type="button" onClick={() => void requeueEmbedding()} disabled={busy} className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Requeue revision embedding</button>
+                  <button type="button" onClick={() => void requeueEmbedding()} disabled={busy} className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-50 shadow-sm">Requeue revision embedding</button>
                 </div>
               </div>
 
               {history ? (
                 <div className="border-t border-slate-200 pt-5">
-                  <h3 className="font-semibold">Revision and variation history</h3>
-                  <p className="mt-1 text-sm text-slate-500">Question ID: <span className="font-mono">{history.question_id}</span></p>
+                  <h3 className="font-bold text-base text-slate-900">Revision and variation history</h3>
+                  <p className="mt-1 text-sm font-medium text-slate-600">Question ID: <span className="font-mono font-bold text-slate-900">{history.question_id}</span></p>
                   <div className="mt-3 grid gap-2">
                     {history.revisions.map((item) => (
-                      <div key={item.revision_id} className="rounded-lg border border-slate-200 p-3 text-sm">
+                      <div key={item.revision_id} className="rounded-xl border border-slate-200 bg-slate-50/50 p-3.5 text-sm">
                         <div className="flex flex-wrap items-center justify-between gap-2">
-                          <span className="font-semibold">Revision v{item.version_no} · {item.review_status}</span>
-                          <span className="text-xs text-slate-500">Embedding: {item.embedding_status}</span>
+                          <span className="font-bold text-slate-900">Revision v{item.version_no} · <span className="uppercase text-xs font-semibold text-indigo-700">{item.review_status}</span></span>
+                          <span className="text-xs font-semibold text-slate-600">Embedding: {item.embedding_status}</span>
                         </div>
-                        <p className="mt-1">{item.question_text}</p>
-                        <p className="mt-1 text-xs text-slate-500">{item.source} · {new Date(item.created_at).toLocaleString()}</p>
+                        <p className="mt-1 font-medium text-slate-800">{item.question_text}</p>
+                        <p className="mt-1 text-xs font-medium text-slate-500">{item.source} · {new Date(item.created_at).toLocaleString()}</p>
                       </div>
                     ))}
                   </div>
                   <div className="mt-4 grid gap-2">
                     {history.variations.map((item) => (
-                      <div key={item.variation_id} className="rounded-lg border border-slate-200 p-3 text-sm">
-                        <p>{item.variation_text}</p>
-                        <p className="mt-1 text-xs text-slate-500">Embedding: {item.embedding_status} · {item.active ? "active" : "inactive"}</p>
+                      <div key={item.variation_id} className="rounded-xl border border-slate-200 bg-slate-50/50 p-3.5 text-sm">
+                        <p className="font-medium text-slate-800">{item.variation_text}</p>
+                        <p className="mt-1 text-xs font-semibold text-slate-600">Embedding: {item.embedding_status} · <span className={item.active ? "text-emerald-700 font-bold" : "text-slate-500"}>{item.active ? "active" : "inactive"}</span></p>
                         <div className="mt-2 flex flex-wrap gap-2">
-                          <button type="button" onClick={() => void setVariationActive(item.variation_id, !item.active)} disabled={busy} className="rounded border border-slate-300 px-3 py-1 text-xs font-semibold disabled:opacity-50">{item.active ? "Disable" : "Enable"} variation</button>
-                          {item.active ? <button type="button" onClick={() => void requeueEmbedding(item.variation_id)} disabled={busy} className="rounded border border-slate-300 px-3 py-1 text-xs font-semibold disabled:opacity-50">Requeue embedding</button> : null}
+                          <button type="button" onClick={() => void setVariationActive(item.variation_id, !item.active)} disabled={busy} className="rounded-lg border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-50">{item.active ? "Disable" : "Enable"} variation</button>
+                          {item.active ? <button type="button" onClick={() => void requeueEmbedding(item.variation_id)} disabled={busy} className="rounded-lg border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-50">Requeue embedding</button> : null}
                         </div>
                       </div>
                     ))}
-                    {history.variations.length === 0 ? <p className="text-sm text-slate-500">No approved variations yet.</p> : null}
+                    {history.variations.length === 0 ? <p className="text-sm font-medium text-slate-500">No approved variations yet.</p> : null}
                   </div>
                 </div>
               ) : null}
 
               <div className="border-t border-red-200 pt-5">
-                <h3 className="font-semibold text-red-800">Archive active approved revision</h3>
-                <p className="mt-1 text-sm text-red-700">Archiving removes this revision from approved reuse. The reason is required and audited; history is retained.</p>
-                <textarea aria-label="Required archive reason" className={`${inputClass} mt-3 min-h-20 border-red-200`} value={archiveReason} onChange={(event) => setArchiveReason(event.target.value)} maxLength={1000} placeholder="Required archive reason" />
-                <button type="button" onClick={() => void archiveRevision()} disabled={busy || !archiveReason.trim()} className="mt-2 rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Archive revision</button>
+                <h3 className="font-bold text-base text-red-800">Archive active approved revision</h3>
+                <p className="mt-1 text-sm font-medium text-red-700">Archiving removes this revision from approved reuse. The reason is required and audited; history is retained.</p>
+                <textarea aria-label="Required archive reason" className={`${inputClass} mt-3 min-h-20 border-red-300 focus:border-red-500 focus:outline-none`} value={archiveReason} onChange={(event) => setArchiveReason(event.target.value)} maxLength={1000} placeholder="Required archive reason" />
+                <button type="button" onClick={() => void archiveRevision()} disabled={busy || !archiveReason.trim()} className="mt-3 rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white hover:bg-red-600 disabled:opacity-50 shadow-sm">Archive revision</button>
               </div>
             </div>
           ) : null}

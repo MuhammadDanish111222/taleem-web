@@ -19,16 +19,229 @@ export default function AiSettingsClient() {
   const load = useCallback(async () => { const response = await fetch("/api/admin/ai-settings", { cache: "no-store" }); if (!response.ok) { setMessage("Settings are unavailable."); return; } const data = await response.json(); setRegistry(data.registry); setKey((selected) => selected || data.registry[0]?.key || ""); }, []);
   useEffect(() => { void load(); }, [load]);
   useEffect(() => { if (current && !current.scopes.includes(scope)) setScope(current.scopes[0]); }, [current, scope]);
-  useEffect(() => { if (!key || !current) return; const params = new URLSearchParams({ key, scope_kind: scope }); if (scope === "subject" || scope === "class_subject") { if (!subjectId) { setValueLoading(true); return; } params.set("subject_id", subjectId); } if (scope === "class_subject") { if (!classId) { setValueLoading(true); return; } params.set("class_id", classId); } if (scope === "account_tier") { const keyTier = key.split(".").pop(); if (keyTier) { setTier(keyTier); params.set("account_tier", keyTier); } } setValueLoading(true); fetch(`/api/admin/ai-settings?${params}`, { cache:"no-store" }).then(async r => { if (!r.ok) throw new Error(); const item=(await r.json()).selected; setRawValue(String(item.value)); }).catch(() => setMessage("Current setting value is unavailable.")).finally(()=>setValueLoading(false)); }, [key, scope, subjectId, classId, current]);
-  const valueFor = () => { if (current?.value_type === "boolean") return rawValue === "true"; if (current?.value_type === "integer" || current?.value_type === "number") return Number(rawValue); return rawValue; };
-  const submit = async (event: React.FormEvent) => { event.preventDefault(); if (!current || valueLoading || rawValue === "" || !Number.isFinite(valueFor() as number) && (current.value_type === "integer" || current.value_type === "number")) return; const selectedScope: Record<string, string> = { kind: scope }; if (scope === "subject" || scope === "class_subject") selectedScope.subject_id = subjectId; if (scope === "class_subject") selectedScope.class_id = classId; if (scope === "account_tier") selectedScope.account_tier = key.split(".").pop() || tier; const response = await fetch("/api/admin/ai-settings", { method: "POST", headers: { "content-type": "application/json", "x-csrf-token": await csrf() }, body: JSON.stringify({ key, scope: selectedScope, value: valueFor() }) }); const data = await response.json().catch(() => ({})); setMessage(response.ok ? "Setting saved. The next relevant request will use it." : `Setting rejected: ${data.code ?? "RUNTIME_SETTING_REJECTED"}`); if (response.ok) await load(); };
-  return <section className="p-8 max-w-4xl"><h1 className="text-2xl font-bold">AI runtime settings</h1><p className="mt-2 text-sm text-gray-600">Only allowlisted operational settings are editable. Prompts remain in Ask Prompts; the grounded-evidence rule and all secrets stay locked in code or environment configuration.</p><form onSubmit={submit} className="mt-6 grid gap-4 rounded border bg-white p-5">
-    <label>Setting<select className="ml-2 border p-2" value={key} onChange={(e) => { setKey(e.target.value); setRawValue(""); }}>{registry.map((item) => <option key={item.key} value={item.key}>{item.key}</option>)}</select></label>
-    <p className="text-sm">{current?.description} <span className="text-gray-500">Owner: {current?.owner}; bounds: {current?.minimum ?? "—"} to {current?.maximum ?? "—"}.</span></p>
-    <label>Scope<select className="ml-2 border p-2" value={scope} onChange={(e) => setScope(e.target.value as ScopeKind)}>{current?.scopes.map((item) => <option key={item}>{item}</option>)}</select></label>
-    {(scope === "subject" || scope === "class_subject") && <label>Subject <input required className="ml-2 border p-2" value={subjectId} onChange={(e) => setSubjectId(e.target.value)} /></label>}
-    {scope === "class_subject" && <label>Class <input required className="ml-2 border p-2" value={classId} onChange={(e) => setClassId(e.target.value)} /></label>}
-    {scope === "account_tier" && <label>Tier <input className="ml-2 border p-2" value={key.split(".").pop() || tier} readOnly /></label>}
-    {current?.value_type === "boolean" ? <label>Value <select className="ml-2 border p-2" value={rawValue} onChange={(e) => setRawValue(e.target.value)}><option value="true">true</option><option value="false">false</option></select></label> : current?.value_type === "enum" ? <label>Value <select className="ml-2 border p-2" value={rawValue} onChange={(e) => setRawValue(e.target.value)}>{current.allowed_values.map((value) => <option key={value}>{value}</option>)}</select></label> : <label>Value <input required type="number" min={current?.minimum ?? undefined} max={current?.maximum ?? undefined} className="ml-2 border p-2" value={rawValue} onChange={(e) => setRawValue(e.target.value)} /></label>}
-    <button disabled={valueLoading || rawValue === ""} className="w-fit rounded bg-blue-700 px-4 py-2 text-white disabled:opacity-50" type="submit">{valueLoading ? "Loading current value…" : "Save setting"}</button>{message && <p role="status" className="text-sm">{message}</p>}</form></section>;
+  const fetchCurrentValue = useCallback(async () => {
+    if (!key || !current) return;
+    const params = new URLSearchParams({ key, scope_kind: scope });
+    if (scope === "subject" || scope === "class_subject") {
+      if (!subjectId) {
+        setValueLoading(true);
+        return;
+      }
+      params.set("subject_id", subjectId);
+    }
+    if (scope === "class_subject") {
+      if (!classId) {
+        setValueLoading(true);
+        return;
+      }
+      params.set("class_id", classId);
+    }
+    if (scope === "account_tier") {
+      const keyTier = key.split(".").pop();
+      if (keyTier) {
+        setTier(keyTier);
+        params.set("account_tier", keyTier);
+      }
+    }
+    setValueLoading(true);
+    try {
+      const r = await fetch(`/api/admin/ai-settings?${params.toString()}`, { cache: "no-store" });
+      if (!r.ok) throw new Error();
+      const item = (await r.json()).selected;
+      if (item && item.value !== undefined && item.value !== null) {
+        setRawValue(String(item.value));
+      }
+    } catch {
+      setMessage("Current setting value is unavailable.");
+    } finally {
+      setValueLoading(false);
+    }
+  }, [key, scope, subjectId, classId, current]);
+
+  useEffect(() => {
+    void fetchCurrentValue();
+  }, [fetchCurrentValue]);
+
+  const valueFor = () => {
+    if (current?.value_type === "boolean") return rawValue === "true";
+    if (current?.value_type === "integer" || current?.value_type === "number") return Number(rawValue);
+    return rawValue;
+  };
+
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (
+      !current ||
+      valueLoading ||
+      rawValue === "" ||
+      (!Number.isFinite(valueFor() as number) &&
+        (current.value_type === "integer" || current.value_type === "number"))
+    )
+      return;
+    const selectedScope: Record<string, string> = { kind: scope };
+    if (scope === "subject" || scope === "class_subject") selectedScope.subject_id = subjectId;
+    if (scope === "class_subject") selectedScope.class_id = classId;
+    if (scope === "account_tier") selectedScope.account_tier = key.split(".").pop() || tier;
+    const response = await fetch("/api/admin/ai-settings", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-csrf-token": await csrf() },
+      body: JSON.stringify({ key, scope: selectedScope, value: valueFor() }),
+    });
+    const data = await response.json().catch(() => ({}));
+    setMessage(
+      response.ok
+        ? "Setting saved. The next relevant request will use it."
+        : `Setting rejected: ${data.code ?? "RUNTIME_SETTING_REJECTED"}`
+    );
+    if (response.ok) {
+      await load();
+      await fetchCurrentValue();
+    }
+  };
+  return (
+    <section className="p-8 max-w-4xl text-slate-900">
+      <h1 className="text-3xl font-bold text-slate-900">AI runtime settings</h1>
+      <p className="mt-2 text-sm font-medium text-slate-600">
+        Only allowlisted operational settings are editable. Prompts remain in Ask Prompts; the grounded-evidence rule and all secrets stay locked in code or environment configuration.
+      </p>
+      <form onSubmit={submit} className="mt-6 grid gap-5 rounded-xl border border-slate-200 bg-white p-6 shadow-sm text-slate-900">
+        <div>
+          <label className="block text-sm font-semibold text-slate-800">
+            Setting
+            <select
+              className="mt-1.5 block w-full rounded-lg border border-slate-300 bg-white p-2.5 text-sm font-medium text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none"
+              value={key}
+              onChange={(e) => {
+                setKey(e.target.value);
+                setRawValue("");
+              }}
+            >
+              {registry.map((item) => (
+                <option key={item.key} value={item.key}>
+                  {item.key}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="mt-2 text-sm font-medium text-slate-700">
+            {current?.description}{" "}
+            <span className="block font-normal text-xs text-slate-500 mt-0.5">
+              Owner: {current?.owner}; bounds: {current?.minimum ?? "—"} to {current?.maximum ?? "—"}.
+            </span>
+          </p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-semibold text-slate-800">
+            Scope
+            <select
+              className="mt-1.5 block w-full rounded-lg border border-slate-300 bg-white p-2.5 text-sm font-medium text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none"
+              value={scope}
+              onChange={(e) => setScope(e.target.value as ScopeKind)}
+            >
+              {current?.scopes.map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        {(scope === "subject" || scope === "class_subject") && (
+          <div>
+            <label className="block text-sm font-semibold text-slate-800">
+              Subject
+              <input
+                required
+                className="mt-1.5 block w-full rounded-lg border border-slate-300 bg-white p-2.5 text-sm font-medium text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none"
+                value={subjectId}
+                onChange={(e) => setSubjectId(e.target.value)}
+              />
+            </label>
+          </div>
+        )}
+
+        {scope === "class_subject" && (
+          <div>
+            <label className="block text-sm font-semibold text-slate-800">
+              Class
+              <input
+                required
+                className="mt-1.5 block w-full rounded-lg border border-slate-300 bg-white p-2.5 text-sm font-medium text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none"
+                value={classId}
+                onChange={(e) => setClassId(e.target.value)}
+              />
+            </label>
+          </div>
+        )}
+
+        {scope === "account_tier" && (
+          <div>
+            <label className="block text-sm font-semibold text-slate-800">
+              Tier
+              <input
+                className="mt-1.5 block w-full rounded-lg border border-slate-300 bg-slate-100 p-2.5 text-sm font-medium text-slate-900 shadow-sm"
+                value={key.split(".").pop() || tier}
+                readOnly
+              />
+            </label>
+          </div>
+        )}
+
+        <div>
+          {current?.value_type === "boolean" ? (
+            <label className="block text-sm font-semibold text-slate-800">
+              Value
+              <select
+                className="mt-1.5 block w-full rounded-lg border border-slate-300 bg-white p-2.5 text-sm font-medium text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none"
+                value={rawValue}
+                onChange={(e) => setRawValue(e.target.value)}
+              >
+                <option value="true">true</option>
+                <option value="false">false</option>
+              </select>
+            </label>
+          ) : current?.value_type === "enum" ? (
+            <label className="block text-sm font-semibold text-slate-800">
+              Value
+              <select
+                className="mt-1.5 block w-full rounded-lg border border-slate-300 bg-white p-2.5 text-sm font-medium text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none"
+                value={rawValue}
+                onChange={(e) => setRawValue(e.target.value)}
+              >
+                {current.allowed_values.map((val) => (
+                  <option key={val} value={val}>
+                    {val}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            <label className="block text-sm font-semibold text-slate-800">
+              Value
+              <input
+                required
+                type="number"
+                min={current?.minimum ?? undefined}
+                max={current?.maximum ?? undefined}
+                className="mt-1.5 block w-full rounded-lg border border-slate-300 bg-white p-2.5 text-sm font-medium text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none"
+                value={rawValue}
+                onChange={(e) => setRawValue(e.target.value)}
+              />
+            </label>
+          )}
+        </div>
+
+        <button
+          disabled={valueLoading || rawValue === ""}
+          className="w-fit rounded-lg bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-600 disabled:opacity-50"
+          type="submit"
+        >
+          {valueLoading ? "Loading current value…" : "Save setting"}
+        </button>
+        {message && <p role="status" className="text-sm font-semibold text-indigo-700">{message}</p>}
+      </form>
+    </section>
+  );
 }

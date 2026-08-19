@@ -16,7 +16,7 @@ import {
 } from "@/lib/resources/types";
 
 const inputClass =
-  "w-full rounded-lg border border-slate-600 bg-slate-950 px-3 py-2 text-white placeholder:text-slate-500 focus:border-blue-500 focus:outline-none disabled:opacity-50";
+  "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-900 placeholder:text-slate-500 shadow-sm focus:border-blue-500 focus:outline-none disabled:opacity-50";
 const MAX_PDF_MIB = 150;
 const MAX_PDF_BYTES = MAX_PDF_MIB * 1024 * 1024;
 
@@ -309,32 +309,32 @@ export default function ContentAdminClient() {
   };
 
   return (
-    <div className="p-8 text-slate-100">
+    <div className="p-8 text-slate-900">
       <div className="mx-auto max-w-7xl space-y-8">
         <header>
-          <h1 className="text-3xl font-bold text-white">Content Management</h1>
-          <p className="mt-2 text-slate-400">
+          <h1 className="text-3xl font-bold text-slate-900">Content Management</h1>
+          <p className="mt-2 text-sm font-medium text-slate-600">
             Upload private PDFs, review drafts, publish for students, or safely hide and archive content.
           </p>
         </header>
 
-        {error && <div className="rounded-lg border border-red-800 bg-red-950/40 p-4 text-red-200">{error}</div>}
-        {success && <div className="rounded-lg border border-emerald-800 bg-emerald-950/40 p-4 text-emerald-200">{success}</div>}
+        {error && <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-800">{error}</div>}
+        {success && <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-800">{success}</div>}
 
-        <form onSubmit={upload} className="rounded-xl border border-slate-700 bg-slate-900 p-6">
+        <form onSubmit={upload} className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm text-slate-900">
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 className="text-xl font-semibold text-white">
+              <h2 className="text-xl font-bold text-slate-900">
                 {replacement ? "Upload replacement version" : "Upload new content"}
               </h2>
               {replacement && (
-                <p className="mt-1 text-sm text-slate-400">
+                <p className="mt-1 text-sm font-medium text-slate-600">
                   Replacing “{replacement.title}”. Its existing version remains in history.
                 </p>
               )}
             </div>
             {replacement && (
-              <button type="button" onClick={() => setReplacement(null)} className="text-sm text-blue-300 hover:text-blue-200">
+              <button type="button" onClick={() => setReplacement(null)} className="text-sm font-semibold text-blue-700 hover:text-blue-800">
                 Cancel replacement
               </button>
             )}
@@ -342,7 +342,7 @@ export default function ContentAdminClient() {
 
           {!replacement && (
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <label className="space-y-1 text-sm">
+              <label className="space-y-1 text-sm font-semibold text-slate-800">
                 <span>Content type</span>
                 <select value={type} onChange={(event) => setType(event.target.value as ResourceType)} className={inputClass}>
                   <option value="book">Book</option>
@@ -350,37 +350,37 @@ export default function ContentAdminClient() {
                   <option value="past_paper">Past paper</option>
                 </select>
               </label>
-              <label className="space-y-1 text-sm xl:col-span-2">
+              <label className="space-y-1 text-sm font-semibold text-slate-800 xl:col-span-2">
                 <span>Title</span>
                 <input required value={title} onChange={(event) => setTitle(event.target.value)} className={inputClass} placeholder="e.g. Chemistry Chapter 1 Notes" />
               </label>
-              <label className="space-y-1 text-sm">
+              <label className="space-y-1 text-sm font-semibold text-slate-800">
                 <span>Display order</span>
                 <input required type="number" min="0" value={displayOrder} onChange={(event) => setDisplayOrder(event.target.value)} className={inputClass} />
               </label>
 
-              <label className="space-y-1 text-sm">
+              <label className="space-y-1 text-sm font-semibold text-slate-800">
                 <span>Board</span>
                 <select required value={boardId} onChange={(event) => selectBoard(event.target.value)} className={inputClass}>
                   <option value="">Select board</option>
                   {boards.data?.map((item) => <option key={item.slug} value={item.slug}>{item.name}</option>)}
                 </select>
               </label>
-              <label className="space-y-1 text-sm">
+              <label className="space-y-1 text-sm font-semibold text-slate-800">
                 <span>Class</span>
                 <select required value={classId} onChange={(event) => selectClass(event.target.value)} disabled={!boardId || classes.loading} className={inputClass}>
                   <option value="">Select class</option>
                   {classes.data?.map((item) => <option key={item.slug} value={item.slug}>{item.name}</option>)}
                 </select>
               </label>
-              <label className="space-y-1 text-sm">
+              <label className="space-y-1 text-sm font-semibold text-slate-800">
                 <span>Subject</span>
                 <select required value={subjectId} onChange={(event) => selectSubject(event.target.value)} disabled={!classId || subjects.loading} className={inputClass}>
                   <option value="">Select subject</option>
                   {subjects.data?.map((item) => <option key={item.slug} value={item.slug}>{item.name}</option>)}
                 </select>
               </label>
-              <label className="space-y-1 text-sm">
+              <label className="space-y-1 text-sm font-semibold text-slate-800">
                 <span>Chapter (optional)</span>
                 <select value={chapterId} onChange={(event) => setChapterId(event.target.value)} disabled={!subjectId || chapters.loading} className={inputClass}>
                   <option value="">Whole subject / all chapters</option>
@@ -390,18 +390,18 @@ export default function ContentAdminClient() {
 
               {type === "past_paper" && (
                 <>
-                  <label className="space-y-1 text-sm">
+                  <label className="space-y-1 text-sm font-semibold text-slate-800">
                     <span>Examination board</span>
                     <select required value={examinationBoardId} onChange={(event) => setExaminationBoardId(event.target.value)} disabled={!boardId || examinationBoards.loading} className={inputClass}>
                       <option value="">Select examination board</option>
                       {examinationBoards.data?.map((item) => <option key={item.slug} value={item.slug}>{item.name}</option>)}
                     </select>
                   </label>
-                  <label className="space-y-1 text-sm">
+                  <label className="space-y-1 text-sm font-semibold text-slate-800">
                     <span>Paper year</span>
                     <input required type="number" min="1900" max="2100" value={paperYear} onChange={(event) => setPaperYear(event.target.value)} className={inputClass} />
                   </label>
-                  <label className="space-y-1 text-sm">
+                  <label className="space-y-1 text-sm font-semibold text-slate-800">
                     <span>Session</span>
                     <select value={paperSession} onChange={(event) => setPaperSession(event.target.value)} className={inputClass}>
                       <option value="annual">Annual</option>
@@ -409,7 +409,7 @@ export default function ContentAdminClient() {
                       <option value="model">Model paper</option>
                     </select>
                   </label>
-                  <label className="space-y-1 text-sm">
+                  <label className="space-y-1 text-sm font-semibold text-slate-800">
                     <span>Paper type</span>
                     <select value={paperType} onChange={(event) => setPaperType(event.target.value)} className={inputClass}>
                       <option value="subjective">Subjective</option>
@@ -420,14 +420,14 @@ export default function ContentAdminClient() {
                 </>
               )}
 
-              <label className="space-y-1 text-sm">
+              <label className="space-y-1 text-sm font-semibold text-slate-800">
                 <span>Language</span>
                 <select value={language} onChange={(event) => setLanguage(event.target.value)} className={inputClass}>
                   <option value="en">English</option>
                   <option value="ur">Urdu</option>
                 </select>
               </label>
-              <label className="space-y-1 text-sm">
+              <label className="space-y-1 text-sm font-semibold text-slate-800">
                 <span>Curriculum version</span>
                 <input required value={curriculumVersion} onChange={(event) => setCurriculumVersion(event.target.value)} className={inputClass} placeholder="e.g. 2026" />
               </label>
@@ -435,21 +435,21 @@ export default function ContentAdminClient() {
           )}
 
           <div className="mt-5 flex flex-wrap items-end gap-4">
-            <label className="min-w-72 flex-1 space-y-1 text-sm">
+            <label className="min-w-72 flex-1 space-y-1 text-sm font-semibold text-slate-800">
               <span>PDF file</span>
               <input
                 required
                 type="file"
                 accept="application/pdf,.pdf"
                 onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-                className={`${inputClass} file:mr-4 file:rounded-md file:border-0 file:bg-blue-600 file:px-3 file:py-1 file:text-white`}
+                className={`${inputClass} file:mr-4 file:rounded-md file:border-0 file:bg-blue-700 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white`}
               />
-              <span className="block text-xs text-slate-400">
+              <span className="block text-xs font-medium text-slate-500">
                 Maximum 150 MB.
                 {file ? ` Selected: ${(file.size / 1024 / 1024).toFixed(1)} MB.` : ""}
               </span>
             </label>
-            <button disabled={busyId === "upload"} className="rounded-lg bg-blue-600 px-5 py-2.5 font-semibold text-white hover:bg-blue-500 disabled:opacity-60">
+            <button disabled={busyId === "upload"} className="rounded-lg bg-blue-700 px-5 py-2.5 font-semibold text-white hover:bg-blue-600 disabled:opacity-60 shadow-sm">
               {busyId === "upload" ? "Uploading and validating…" : replacement ? "Upload new version" : "Upload draft"}
             </button>
           </div>
@@ -457,59 +457,59 @@ export default function ContentAdminClient() {
 
         <section className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-white">Uploaded content</h2>
-            <button onClick={() => void loadResources()} className="rounded-lg border border-slate-600 px-3 py-2 text-sm hover:bg-slate-800">Refresh</button>
+            <h2 className="text-xl font-bold text-slate-900">Uploaded content</h2>
+            <button onClick={() => void loadResources()} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50 shadow-sm">Refresh</button>
           </div>
 
           {listLoading ? (
-            <div className="rounded-xl border border-slate-700 bg-slate-900 p-10 text-center text-slate-400">Loading content…</div>
+            <div className="rounded-xl border border-slate-200 bg-white p-10 text-center text-sm font-medium text-slate-500 shadow-sm">Loading content…</div>
           ) : resources.length === 0 ? (
-            <div className="rounded-xl border border-slate-700 bg-slate-900 p-10 text-center text-slate-400">No content has been uploaded yet.</div>
+            <div className="rounded-xl border border-slate-200 bg-white p-10 text-center text-sm font-medium text-slate-500 shadow-sm">No content has been uploaded yet.</div>
           ) : (
             resources.map((resource) => (
-              <article key={resource.id} className="rounded-xl border border-slate-700 bg-slate-900 p-5">
+              <article key={resource.id} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm text-slate-900">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded bg-slate-800 px-2 py-1 text-xs uppercase text-slate-300">{resource.type.replace("_", " ")}</span>
-                      <span className={`rounded px-2 py-1 text-xs font-semibold ${resource.status === "published" ? "bg-emerald-950 text-emerald-300" : resource.status === "archived" ? "bg-red-950 text-red-300" : "bg-amber-950 text-amber-300"}`}>{resource.status}</span>
+                      <span className="rounded bg-slate-100 px-2.5 py-1 text-xs font-semibold uppercase text-slate-700">{resource.type.replace("_", " ")}</span>
+                      <span className={`rounded px-2.5 py-1 text-xs font-semibold ${resource.status === "published" ? "bg-emerald-100 text-emerald-800" : resource.status === "archived" ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-800"}`}>{resource.status}</span>
                     </div>
-                    <h3 className="mt-2 text-lg font-semibold text-white">{resource.title}</h3>
-                    <p className="mt-1 text-sm text-slate-400">
+                    <h3 className="mt-2 text-lg font-bold text-slate-900">{resource.title}</h3>
+                    <p className="mt-1 text-sm font-medium text-slate-600">
                       {resource.boardId} / {resource.classId} / {resource.subjectId}
                       {resource.chapterId ? ` / ${resource.chapterId}` : " / whole subject"}
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {resource.status === "draft" || resource.status === "hidden" ? (
-                      <button disabled={busyId === resource.id} onClick={() => void mutate(resource, "publish")} className="rounded bg-emerald-700 px-3 py-2 text-sm font-medium hover:bg-emerald-600 disabled:opacity-60">Publish</button>
+                      <button disabled={busyId === resource.id} onClick={() => void mutate(resource, "publish")} className="rounded-lg bg-emerald-700 px-3.5 py-2 text-sm font-semibold text-white hover:bg-emerald-600 disabled:opacity-60">Publish</button>
                     ) : null}
                     {resource.status === "published" && (
                       <>
-                        <a href={`/content/${resource.id}`} target="_blank" className="rounded bg-blue-700 px-3 py-2 text-sm font-medium hover:bg-blue-600">Open</a>
-                        <button disabled={busyId === resource.id} onClick={() => void mutate(resource, "hide")} className="rounded bg-amber-800 px-3 py-2 text-sm font-medium hover:bg-amber-700 disabled:opacity-60">Hide</button>
+                        <a href={`/content/${resource.id}`} target="_blank" className="rounded-lg bg-blue-700 px-3.5 py-2 text-sm font-semibold text-white hover:bg-blue-600">Open</a>
+                        <button disabled={busyId === resource.id} onClick={() => void mutate(resource, "hide")} className="rounded-lg bg-amber-700 px-3.5 py-2 text-sm font-semibold text-white hover:bg-amber-600 disabled:opacity-60">Hide</button>
                       </>
                     )}
                     {(resource.status === "draft" || resource.status === "hidden") && (
-                      <button onClick={() => { setReplacement(resource); setFile(null); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="rounded bg-slate-700 px-3 py-2 text-sm font-medium hover:bg-slate-600">New version</button>
+                      <button onClick={() => { setReplacement(resource); setFile(null); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50">New version</button>
                     )}
                     {resource.status !== "archived" && resource.status !== "published" && (
-                      <button disabled={busyId === resource.id} onClick={() => void mutate(resource, "archive")} className="rounded bg-red-950 px-3 py-2 text-sm font-medium text-red-200 hover:bg-red-900 disabled:opacity-60">Archive</button>
+                      <button disabled={busyId === resource.id} onClick={() => void mutate(resource, "archive")} className="rounded-lg bg-red-100 px-3.5 py-2 text-sm font-semibold text-red-800 hover:bg-red-200 disabled:opacity-60">Archive</button>
                     )}
                     {resource.status === "archived" && (
-                      <button disabled={busyId === resource.id} onClick={() => void mutate(resource, "restore")} className="rounded bg-slate-700 px-3 py-2 text-sm font-medium hover:bg-slate-600 disabled:opacity-60">Restore draft</button>
+                      <button disabled={busyId === resource.id} onClick={() => void mutate(resource, "restore")} className="rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-60">Restore draft</button>
                     )}
-                    <button onClick={() => void toggleVersions(resource.id)} className="rounded border border-slate-600 px-3 py-2 text-sm hover:bg-slate-800">
+                    <button onClick={() => void toggleVersions(resource.id)} className="rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50">
                       {versions[resource.id] ? "Hide versions" : "Versions"}
                     </button>
                   </div>
                 </div>
                 {versions[resource.id] && (
-                  <div className="mt-4 space-y-2 border-t border-slate-800 pt-4">
+                  <div className="mt-4 space-y-2 border-t border-slate-200 pt-4">
                     {versions[resource.id].map((version) => (
-                      <div key={version.id} className="flex flex-wrap justify-between gap-2 rounded-lg bg-slate-950 p-3 text-sm text-slate-300">
+                      <div key={version.id} className="flex flex-wrap justify-between gap-2 rounded-lg bg-slate-50 p-3 text-sm font-medium text-slate-800">
                         <span>{version.originalFilename} · {version.pageCount} pages · {(version.sizeBytes / 1024 / 1024).toFixed(1)} MB</span>
-                        <span>{new Date(version.createdAt).toLocaleString()}</span>
+                        <span className="text-slate-600">{new Date(version.createdAt).toLocaleString()}</span>
                       </div>
                     ))}
                   </div>
@@ -518,7 +518,7 @@ export default function ContentAdminClient() {
             ))
           )}
           {nextCursor && (
-            <button disabled={busyId === "load-more"} onClick={() => void loadResources(nextCursor)} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold hover:bg-blue-500 disabled:opacity-60">
+            <button disabled={busyId === "load-more"} onClick={() => void loadResources(nextCursor)} className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-600 disabled:opacity-60 shadow-sm">
               {busyId === "load-more" ? "Loading…" : "Load more"}
             </button>
           )}

@@ -31,7 +31,16 @@ export async function GET(request: NextRequest) {
   if (!isAdminPanelEnabled()) return new NextResponse("Not Found", { status: 404 });
   try {
     const session = await requireAdminSession();
-    const data = await callAiService("/api/v1/internal/admin/runtime-settings", "GET", null, session.uid, true, "local_runtime_settings", { requestId: request.headers.get("x-request-id") ?? undefined });
+    const search = request.nextUrl.search;
+    const data = await callAiService(
+      `/api/v1/internal/admin/runtime-settings${search}`,
+      "GET",
+      null,
+      session.uid,
+      true,
+      "local_runtime_settings",
+      { requestId: request.headers.get("x-request-id") ?? undefined }
+    );
     return NextResponse.json(data, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) { return failure(error); }
 }

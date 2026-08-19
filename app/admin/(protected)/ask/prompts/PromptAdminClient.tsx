@@ -229,17 +229,17 @@ export default function PromptAdminClient() {
     <section className="mx-auto max-w-7xl p-6 text-slate-900">
       <div className="mb-6">
         <p className="text-sm font-semibold uppercase tracking-wider text-indigo-600">Local-only Module 4</p>
-        <h1 className="text-3xl font-bold">Prompt management</h1>
-        <p className="mt-2 text-slate-600">Manage the four prompt types independently at an exact Board/Class/Subject scope or a Subject Global fallback. Prompt content remains server-admin data.</p>
+        <h1 className="text-3xl font-bold text-slate-900">Prompt management</h1>
+        <p className="mt-2 text-sm font-medium text-slate-600">Manage the four prompt types independently at an exact Board/Class/Subject scope or a Subject Global fallback. Prompt content remains server-admin data.</p>
       </div>
 
-      <div className="mb-6 grid gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-3">
-        <label className="grid gap-1 text-sm font-medium">Prompt type
+      <div className="mb-6 grid gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-3 text-slate-900">
+        <label className="grid gap-1 text-sm font-semibold text-slate-800">Prompt type
           <select className={inputClass} value={promptType} onChange={(event) => setPromptType(event.target.value as PromptType)}>
             {Object.entries(promptTypes).map(([value, type]) => <option key={value} value={value}>{type.label}</option>)}
           </select>
         </label>
-        <label className="grid gap-1 text-sm font-medium">Scope
+        <label className="grid gap-1 text-sm font-semibold text-slate-800">Scope
           <select className={inputClass} value={scopeKind} onChange={(event) => setScopeKind(event.target.value as ScopeKind)}>
             <option value="subject_global">Subject Global</option>
             <option value="exact">Exact Board + Class + Subject</option>
@@ -250,66 +250,66 @@ export default function PromptAdminClient() {
         <input aria-label="Subject ID" className={inputClass} placeholder="Subject ID" value={subjectId} onChange={(event) => setSubjectId(event.target.value)} />
       </div>
 
-      <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <h2 className="font-semibold">Approved answer semantic threshold</h2>
-        <p className="mt-1 text-sm text-slate-600">Minimum similarity required before an approved answer may be reused for a semantically similar question.</p>
-        <div className="mt-3 flex flex-wrap items-end gap-3">
-          <label className="grid gap-1 text-sm font-medium">Minimum similarity
+      <div className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm text-slate-900">
+        <h2 className="font-bold text-lg text-slate-900">Approved answer semantic threshold</h2>
+        <p className="mt-1 text-sm font-medium text-slate-600">Minimum similarity required before an approved answer may be reused for a semantically similar question.</p>
+        <div className="mt-4 flex flex-wrap items-end gap-3">
+          <label className="grid gap-1 text-sm font-semibold text-slate-800">Minimum similarity
             <input aria-label="Approved answer semantic threshold" className={`${inputClass} w-40`} type="number" min="0.80" max="0.99" step="0.01" value={semanticThreshold} onChange={(event) => setSemanticThreshold(event.target.value)} disabled={!subjectId.trim()} />
           </label>
-          <button type="button" onClick={() => void loadSemanticThreshold()} disabled={busy || !subjectId.trim()} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-800 disabled:opacity-50">Load current</button>
-          <button type="button" onClick={() => void saveSemanticThreshold()} disabled={busy || !subjectId.trim() || (scopeKind === "exact" && !classId.trim())} className="rounded-lg bg-indigo-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Save threshold</button>
-          <span className="pb-2 text-xs text-slate-500">Current source: {semanticScope || "not loaded"}</span>
+          <button type="button" onClick={() => void loadSemanticThreshold()} disabled={busy || !subjectId.trim()} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50 shadow-sm disabled:opacity-50">Load current</button>
+          <button type="button" onClick={() => void saveSemanticThreshold()} disabled={busy || !subjectId.trim() || (scopeKind === "exact" && !classId.trim())} className="rounded-lg bg-indigo-700 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-600 shadow-sm disabled:opacity-50">Save threshold</button>
+          <span className="pb-2 text-xs font-semibold text-slate-600">Current source: {semanticScope || "not loaded"}</span>
         </div>
       </div>
 
-      {error ? <p role="alert" className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p> : null}
-      {notice ? <p role="status" className="mb-4 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">{notice}</p> : null}
+      {error ? <p role="alert" className="mb-4 rounded-lg bg-red-50 p-3 text-sm font-medium text-red-800 border border-red-200">{error}</p> : null}
+      {notice ? <p role="status" className="mb-4 rounded-lg bg-emerald-50 p-3 text-sm font-medium text-emerald-800 border border-emerald-200">{notice}</p> : null}
 
       <div className="grid gap-6 lg:grid-cols-[22rem_1fr]">
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm text-slate-900">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="font-semibold">History</h2>
-            <button type="button" className="text-sm text-indigo-700" onClick={() => void loadHistory()} disabled={busy || !scopeReady}>Load history</button>
+            <h2 className="font-bold text-lg text-slate-900">History</h2>
+            <button type="button" className="text-sm font-semibold text-indigo-700 hover:text-indigo-800" onClick={() => void loadHistory()} disabled={busy || !scopeReady}>Load history</button>
           </div>
-          <p className="mb-3 text-sm text-slate-600">Active: {active ? `v${active.version}` : "none for this scope"}</p>
+          <p className="mb-3 text-sm font-medium text-slate-600">Active: <span className="font-bold text-slate-900">{active ? `v${active.version}` : "none for this scope"}</span></p>
           <div className="grid max-h-[40rem] gap-2 overflow-y-auto">
             {items.map((item) => (
-              <button key={item.id} type="button" onClick={() => choose(item)} className={`rounded-lg border p-3 text-left text-sm ${selectedId === item.id ? "border-indigo-500 bg-indigo-50" : "border-slate-200"}`}>
-                <span className="font-semibold">v{item.version}</span>{" "}
-                <span className={`rounded px-2 py-0.5 text-xs ${item.status === "active" ? "bg-emerald-100 text-emerald-800" : "bg-slate-100"}`}>{item.status}</span>
-                <span className="mt-1 block text-xs text-slate-500">{new Date(item.created_at).toLocaleString()}</span>
+              <button key={item.id} type="button" onClick={() => choose(item)} className={`rounded-xl border p-3 text-left text-sm transition-colors ${selectedId === item.id ? "border-indigo-500 bg-indigo-50" : "border-slate-200 hover:border-slate-300"}`}>
+                <span className="font-bold text-slate-900">v{item.version}</span>{" "}
+                <span className={`rounded px-2 py-0.5 text-xs font-semibold ${item.status === "active" ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-700"}`}>{item.status}</span>
+                <span className="mt-1 block text-xs font-medium text-slate-500">{new Date(item.created_at).toLocaleString()}</span>
               </button>
             ))}
-            {!busy && items.length === 0 ? <p className="text-sm text-slate-500">No prompt versions found.</p> : null}
+            {!busy && items.length === 0 ? <p className="text-sm font-medium text-slate-500">No prompt versions found.</p> : null}
           </div>
         </div>
 
         <div className="grid gap-6">
-          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="font-semibold">Create or edit a draft</h2>
-            <p className="mt-1 text-sm text-slate-500">Create a separate version, or update only the currently selected draft. Active and retired versions remain immutable.</p>
+          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm text-slate-900">
+            <h2 className="font-bold text-lg text-slate-900">Create or edit a draft</h2>
+            <p className="mt-1 text-sm font-medium text-slate-600">Create a separate version, or update only the currently selected draft. Active and retired versions remain immutable.</p>
             <textarea aria-label="Prompt content" className="mt-4 min-h-72 w-full rounded-lg border border-slate-300 bg-white p-3 font-mono text-sm text-slate-900 placeholder:text-slate-400" value={content} onChange={(event) => setContent(event.target.value)} maxLength={20000} />
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button type="button" onClick={() => void createDraft()} disabled={busy || !scopeReady || !content.trim()} className="rounded-lg bg-indigo-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Create new draft</button>
-              <button type="button" onClick={() => void updateDraft()} disabled={busy || !selected || selected.status !== "draft" || !content.trim()} className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Update selected draft</button>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button type="button" onClick={() => void createDraft()} disabled={busy || !scopeReady || !content.trim()} className="rounded-lg bg-indigo-700 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-600 disabled:opacity-50 shadow-sm">Create new draft</button>
+              <button type="button" onClick={() => void updateDraft()} disabled={busy || !selected || selected.status !== "draft" || !content.trim()} className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-50 shadow-sm">Update selected draft</button>
             </div>
           </div>
 
-          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="font-semibold">Test and activate selected version</h2>
-            <p className="mt-1 text-sm text-slate-500">Draft tests are paid admin provider tests and do not consume student quota. They accept typed text only.</p>
+          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm text-slate-900">
+            <h2 className="font-bold text-lg text-slate-900">Test and activate selected version</h2>
+            <p className="mt-1 text-sm font-medium text-slate-600">Draft tests are paid admin provider tests and do not consume student quota. They accept typed text only.</p>
             <textarea aria-label="Prompt test question" className="mt-4 min-h-24 w-full rounded-lg border border-slate-300 bg-white p-3 text-sm text-slate-900 placeholder:text-slate-400" placeholder="Enter one controlled test question" value={testQuestion} onChange={(event) => setTestQuestion(event.target.value)} maxLength={4000} />
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button type="button" onClick={() => void testDraft()} disabled={busy || !selected || selected.status !== "draft" || !testQuestion.trim()} className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Test draft</button>
-              <button type="button" onClick={() => void changeActive("prompt_activate")} disabled={busy || !selected || selected.status !== "draft"} className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Activate</button>
-              <button type="button" onClick={() => void changeActive("prompt_rollback")} disabled={busy || !selected || selected.status !== "retired"} className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Rollback</button>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button type="button" onClick={() => void testDraft()} disabled={busy || !selected || selected.status !== "draft" || !testQuestion.trim()} className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-50 shadow-sm">Test draft</button>
+              <button type="button" onClick={() => void changeActive("prompt_activate")} disabled={busy || !selected || selected.status !== "draft"} className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600 disabled:opacity-50 shadow-sm">Activate</button>
+              <button type="button" onClick={() => void changeActive("prompt_rollback")} disabled={busy || !selected || selected.status !== "retired"} className="rounded-lg bg-amber-700 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-600 disabled:opacity-50 shadow-sm">Rollback</button>
             </div>
             {testResult ? (
-              <div className="mt-4 rounded-lg bg-slate-950 p-4 text-sm text-slate-100">
-                <p>Provider/model: <span className="font-mono">{testResult.provider} / {testResult.model}</span></p>
-                <p>Tokens: {testResult.usage.prompt_tokens} prompt + {testResult.usage.completion_tokens} completion · Latency: {testResult.latency_ms} ms</p>
-                <pre className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap">{JSON.stringify(testResult.document, null, 2)}</pre>
+              <div className="mt-4 rounded-xl bg-slate-950 p-4 text-sm text-slate-100 shadow-inner">
+                <p className="font-semibold text-slate-200">Provider/model: <span className="font-mono text-emerald-400">{testResult.provider} / {testResult.model}</span></p>
+                <p className="mt-1 text-xs text-slate-400">Tokens: {testResult.usage.prompt_tokens} prompt + {testResult.usage.completion_tokens} completion · Latency: {testResult.latency_ms} ms</p>
+                <pre className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap text-xs text-slate-200 font-mono">{JSON.stringify(testResult.document, null, 2)}</pre>
               </div>
             ) : null}
           </div>

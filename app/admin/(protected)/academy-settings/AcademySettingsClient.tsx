@@ -114,14 +114,14 @@ export default function AcademySettingsClient() {
   const inputsDisabled = loading || saving || !loadedSuccessfully;
 
   return (
-    <section className="p-8 max-w-3xl">
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Academy Settings</h1>
-      <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+    <section className="p-8 max-w-3xl text-slate-900">
+      <h1 className="text-3xl font-bold text-slate-900">Academy Settings</h1>
+      <p className="mt-2 text-sm font-medium text-slate-600">
         Configure public WhatsApp support contact details. These settings are read directly by the
         student application from Firestore.
       </p>
 
-      <form onSubmit={submit} className="mt-6 space-y-6 rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
+      <form onSubmit={submit} className="mt-6 space-y-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm text-slate-900">
         <div className="flex items-center gap-3">
           <input
             id="visible-toggle"
@@ -129,18 +129,18 @@ export default function AcademySettingsClient() {
             checked={visible}
             disabled={inputsDisabled}
             onChange={(e) => setVisible(e.target.checked)}
-            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
           />
-          <label htmlFor="visible-toggle" className="text-sm font-medium text-gray-700 dark:text-gray-200">
+          <label htmlFor="visible-toggle" className="text-sm font-semibold text-slate-800">
             Show WhatsApp Support Action on Student Pages
           </label>
         </div>
 
         <div>
-          <label htmlFor="whatsapp-number" className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+          <label htmlFor="whatsapp-number" className="block text-sm font-semibold text-slate-800">
             WhatsApp Phone Number
           </label>
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+          <p className="mt-1 text-xs font-medium text-slate-500">
             International format without leading + or 0 (e.g. <code>923345405945</code>). Must be 7–15 digits.
           </p>
           <input
@@ -151,12 +151,12 @@ export default function AcademySettingsClient() {
             value={whatsappNumber}
             onChange={(e) => setWhatsappNumber(e.target.value)}
             placeholder="923345405945"
-            className="mt-2 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+            className="mt-2 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
           />
         </div>
 
         <div>
-          <label htmlFor="message-template" className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+          <label htmlFor="message-template" className="block text-sm font-semibold text-slate-800">
             Default Message Template (optional, max 500 characters)
           </label>
           <textarea
@@ -167,18 +167,18 @@ export default function AcademySettingsClient() {
             value={messageTemplate}
             onChange={(e) => setMessageTemplate(e.target.value)}
             placeholder="Salam Sir Danish, I have a question regarding Taleem AI..."
-            className="mt-2 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+            className="mt-2 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
           />
         </div>
 
         {previewUrl && (
-          <div className="rounded-md bg-gray-50 p-3 text-xs dark:bg-gray-900/50">
-            <span className="font-semibold text-gray-700 dark:text-gray-300">Live Link Preview: </span>
+          <div className="rounded-lg bg-slate-50 border border-slate-200 p-3.5 text-xs">
+            <span className="font-bold text-slate-800">Live Link Preview: </span>
             <a
               href={previewUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-blue-600 underline hover:text-blue-800 dark:text-blue-400"
+              className="font-medium text-blue-700 underline hover:text-blue-900"
             >
               {previewUrl}
             </a>
@@ -189,7 +189,7 @@ export default function AcademySettingsClient() {
           <button
             type="submit"
             disabled={!canSave}
-            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
+            className="rounded-lg bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-600 focus:outline-none disabled:opacity-50"
           >
             {loading ? "Loading..." : saving ? "Saving..." : "Save Settings"}
           </button>
@@ -197,7 +197,7 @@ export default function AcademySettingsClient() {
             <button
               type="button"
               onClick={() => void load()}
-              className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+              className="rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
             >
               Retry
             </button>
@@ -205,7 +205,7 @@ export default function AcademySettingsClient() {
           {statusMessage && (
             <p
               role="status"
-              className={`text-sm font-medium ${isError ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`}
+              className={`text-sm font-semibold ${isError ? "text-red-700" : "text-emerald-700"}`}
             >
               {statusMessage}
             </p>

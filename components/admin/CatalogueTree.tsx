@@ -38,13 +38,13 @@ function CatalogueNode({
 
   return (
     <div className="mb-2">
-      <div className={`flex items-center justify-between p-3 rounded-lg border ${item.active ? 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700' : 'bg-gray-50 dark:bg-gray-800/50 border-gray-200 border-dashed opacity-75'}`}>
+      <div className={`flex items-center justify-between p-3.5 rounded-xl border ${item.active ? 'bg-white border-slate-200 shadow-sm' : 'bg-slate-50 border-slate-200 border-dashed opacity-75'}`}>
         <div className="flex items-center gap-3">
           <div className="flex flex-col gap-1 w-6 items-center">
             <button 
               onClick={() => handleReorder(level, siblings, parentIds, "up", index)}
               disabled={index === 0 || loadingId !== null}
-              className="text-gray-400 hover:text-blue-500 disabled:opacity-30 leading-none"
+              className="text-slate-400 hover:text-blue-600 disabled:opacity-30 leading-none font-bold"
               title="Move Up"
             >
               ▲
@@ -52,7 +52,7 @@ function CatalogueNode({
             <button 
               onClick={() => handleReorder(level, siblings, parentIds, "down", index)}
               disabled={index === siblings.length - 1 || loadingId !== null}
-              className="text-gray-400 hover:text-blue-500 disabled:opacity-30 leading-none"
+              className="text-slate-400 hover:text-blue-600 disabled:opacity-30 leading-none font-bold"
               title="Move Down"
             >
               ▼
@@ -62,37 +62,37 @@ function CatalogueNode({
           {childLevel && (
              <button 
                onClick={() => setIsExpanded(!isExpanded)}
-               className={`w-6 h-6 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${!hasChildren && 'opacity-30 cursor-default hover:bg-transparent'}`}
+               className={`w-6 h-6 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors ${!hasChildren && 'opacity-30 cursor-default hover:bg-transparent'}`}
                disabled={!hasChildren}
              >
                {hasChildren ? (
                  <svg 
-                   className={`w-4 h-4 text-gray-500 transition-transform ${isExpanded ? 'rotate-90' : ''}`} 
+                   className={`w-4 h-4 text-slate-700 transition-transform ${isExpanded ? 'rotate-90' : ''}`} 
                    fill="none" viewBox="0 0 24 24" stroke="currentColor"
                  >
                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                  </svg>
                ) : (
-                 <span className="w-1.5 h-1.5 rounded-full bg-gray-300 dark:bg-gray-600"></span>
+                 <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
                )}
              </button>
           )}
 
           <div>
             <div className="flex items-center gap-2">
-              <span className={`text-xs font-semibold px-2 py-1 rounded uppercase tracking-wider bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300`}>
+              <span className="text-xs font-bold px-2 py-0.5 rounded uppercase tracking-wider bg-slate-100 text-slate-800 border border-slate-200">
                 {level}
               </span>
-              <span className="font-medium text-gray-900 dark:text-white cursor-pointer" onClick={() => hasChildren && setIsExpanded(!isExpanded)}>
+              <span className="font-bold text-slate-900 cursor-pointer hover:text-blue-700" onClick={() => hasChildren && setIsExpanded(!isExpanded)}>
                 {displayName}
               </span>
               {!item.active && (
-                <span className="text-xs text-red-500 bg-red-50 dark:bg-red-900/30 px-2 py-0.5 rounded">
+                <span className="text-xs font-semibold text-red-800 bg-red-100 px-2 py-0.5 rounded">
                   Inactive
                 </span>
               )}
             </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 font-mono">
+            <div className="text-xs text-slate-600 mt-1 font-mono font-medium">
               {item.slug}
               {level === "board" && ` (${children.length} classes, ${examinationBoards.length} exam boards)`}
               {level !== "board" && hasChildren && ` (${children.length} ${childrenKey})`}
@@ -104,13 +104,13 @@ function CatalogueNode({
           <button
             onClick={() => handleToggleActive(level, item, parentIds)}
             disabled={loadingId === item.slug}
-            className={`px-3 py-1 text-sm rounded ${item.active ? 'bg-orange-50 text-orange-600 hover:bg-orange-100 dark:bg-orange-900/30 dark:text-orange-400' : 'bg-green-50 text-green-600 hover:bg-green-100 dark:bg-green-900/30 dark:text-green-400'}`}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg border ${item.active ? 'bg-amber-50 text-amber-900 border-amber-200 hover:bg-amber-100' : 'bg-emerald-50 text-emerald-900 border-emerald-200 hover:bg-emerald-100'}`}
           >
             {loadingId === item.slug ? "..." : item.active ? "Deactivate" : "Activate"}
           </button>
           <button
             onClick={() => setFormConfig({ isOpen: true, initialData: item, level, parentIds })}
-            className="px-3 py-1 text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 rounded dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+            className="px-3 py-1.5 text-xs font-semibold bg-white border border-slate-300 text-slate-800 hover:bg-slate-50 rounded-lg shadow-sm"
           >
             Edit
           </button>
@@ -120,7 +120,7 @@ function CatalogueNode({
                 setFormConfig({ isOpen: true, level: childLevel as any, parentIds: currentIds });
                 setIsExpanded(true); // Auto-expand when adding a child
               }}
-              className="px-3 py-1 text-sm bg-blue-50 text-blue-600 hover:bg-blue-100 rounded dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50"
+              className="px-3 py-1.5 text-xs font-semibold bg-blue-50 border border-blue-200 text-blue-800 hover:bg-blue-100 rounded-lg"
             >
               + Add {childLevel}
             </button>
@@ -135,7 +135,7 @@ function CatalogueNode({
                 });
                 setIsExpanded(true);
               }}
-              className="px-3 py-1 text-sm bg-violet-50 text-violet-700 hover:bg-violet-100 rounded dark:bg-violet-900/30 dark:text-violet-300"
+              className="px-3 py-1.5 text-xs font-semibold bg-indigo-50 border border-indigo-200 text-indigo-800 hover:bg-indigo-100 rounded-lg"
             >
               + Add exam board
             </button>
@@ -255,21 +255,21 @@ export default function CatalogueTree({ initialTree }: { initialTree: any[] }) {
   };
 
   return (
-    <div className="p-6">
+    <div className="p-6 text-slate-900">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Catalogue Management</h2>
+        <h2 className="text-2xl font-bold text-slate-900">Catalogue Management</h2>
         <button
           onClick={() => setFormConfig({ isOpen: true, level: "board", parentIds: {} })}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium"
+          className="px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-600 font-semibold shadow-sm text-sm"
         >
           + Add Board
         </button>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         {initialTree.length === 0 ? (
-          <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-            <p className="text-gray-500 dark:text-gray-400">No boards exist. Create one to get started.</p>
+          <div className="text-center py-12 bg-white rounded-xl border border-slate-200 shadow-sm">
+            <p className="text-sm font-medium text-slate-500">No boards exist. Create one to get started.</p>
           </div>
         ) : (
           initialTree.map((board, index) => (

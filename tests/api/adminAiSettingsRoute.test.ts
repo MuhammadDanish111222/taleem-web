@@ -26,7 +26,17 @@ describe("local runtime settings BFF", () => {
     const request = new NextRequest("http://localhost/api/admin/ai-settings", { method: "POST", body: JSON.stringify({ key: "feature.multiple_ask", scope: { kind: "global" }, value: "enabled" }), headers: { "content-type": "application/json" } });
     expect((await POST(request)).status).toBe(200); expect(validateAdminWriteRequest).toHaveBeenCalledWith(request); expect(callAiService).toHaveBeenCalledWith("/api/v1/internal/admin/runtime-settings", "POST", expect.anything(), "admin", true, "local_runtime_settings", expect.anything());
   });
-  it("does not require CSRF for the authenticated no-store read", async () => {
-    expect((await GET(new NextRequest("http://localhost/api/admin/ai-settings"))).status).toBe(200); expect(validateAdminWriteRequest).not.toHaveBeenCalled();
+  it("does not require CSRF for the authenticated no-store read and forwards query parameters", async () => {
+    expect((await GET(new NextRequest("http://localhost/api/admin/ai-settings?key=feature.test_generation&scope_kind=global"))).status).toBe(200);
+    expect(validateAdminWriteRequest).not.toHaveBeenCalled();
+    expect(callAiService).toHaveBeenCalledWith(
+      "/api/v1/internal/admin/runtime-settings?key=feature.test_generation&scope_kind=global",
+      "GET",
+      null,
+      "admin",
+      true,
+      "local_runtime_settings",
+      expect.anything()
+    );
   });
 });
