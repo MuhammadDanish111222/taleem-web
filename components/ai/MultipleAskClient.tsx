@@ -92,6 +92,17 @@ function statusCopy(status: MultipleAskStatus) {
     )[status.workflowStatus] ?? "Processing your batch"
   );
 }
+function terminalErrorCopy(code: string | null) {
+  if (code === "MULTIPLE_ASK_OCR_TIMEOUT")
+    return "Question extraction took too long. Please try a clearer, smaller image, a text-based PDF, or pasted paper text.";
+  if (code === "MULTIPLE_ASK_OCR_UNAVAILABLE")
+    return "Question extraction is temporarily unavailable. Please try again later.";
+  if (code === "MULTIPLE_ASK_OCR_FAILED")
+    return "The uploaded paper could not be extracted. Please try a clearer image, a text-based PDF, or pasted paper text.";
+  if (code === "MULTIPLE_ASK_EXTRACTION_FAILED")
+    return "The uploaded paper could not be extracted. Please try again with a clearer image, PDF, or pasted text.";
+  return null;
+}
 function errorCopy(error: unknown) {
   if (!(error instanceof MultipleAskApiError))
     return "Network problem. Your durable job has not been changed; please retry.";
@@ -683,9 +694,14 @@ function BatchState({
               Queue progress: {status.queue.progress}%
             </span>
           )}
-        </div>
-        <p className="mt-3 text-sm">{dateLabel(status.retentionExpiresAt)}</p>
-        {status.workflowStatus === "ready_to_answer" && (
+      </div>
+      <p className="mt-3 text-sm">{dateLabel(status.retentionExpiresAt)}</p>
+      {status.workflowStatus === "failed" && terminalErrorCopy(status.terminalErrorCode) && (
+        <p className="mt-3 rounded-lg bg-amber-100 p-3 text-sm text-amber-950">
+          {terminalErrorCopy(status.terminalErrorCode)}
+        </p>
+      )}
+      {status.workflowStatus === "ready_to_answer" && (
           <button
             type="button"
             onClick={() => void resume()}
